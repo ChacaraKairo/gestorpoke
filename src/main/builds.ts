@@ -11,7 +11,8 @@ export function listBuilds(): BuildSummary[] {
       b.name AS build_name,
       b.battle_format,
       b.ability,
-      b.stat_alignment
+      b.stat_alignment,
+      b.held_item
     FROM builds b
     JOIN owned_pokemon op ON op.id = b.owned_pokemon_id
     JOIN species s ON s.id = op.species_id
@@ -27,5 +28,6 @@ export function listBuilds(): BuildSummary[] {
     format: row.battle_format as BuildSummary["format"],
     ability: row.ability == null ? null : String(row.ability),
     statAlignment: row.stat_alignment == null ? null : String(row.stat_alignment),
+    heldItem: row.held_item == null ? null : String(row.held_item),
   }));
 }
