@@ -31,6 +31,11 @@ export function getDatabase(): Database.Database {
   return database;
 }
 
+function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  const columns = db.pragma(`table_info(${table})`) as Array<{ name: string }>;
+  return columns.some((item) => item.name === column);
+}
+
 function migrate(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS species (
@@ -63,6 +68,7 @@ function migrate(db: Database.Database): void {
       battle_format TEXT NOT NULL DEFAULT 'both' CHECK (battle_format IN ('single', 'double', 'both')),
       ability TEXT,
       stat_alignment TEXT,
+      held_item TEXT,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -114,6 +120,10 @@ function migrate(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_builds_owned_pokemon ON builds(owned_pokemon_id);
     CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
   `);
+
+  if (!hasColumn(db, "builds", "held_item")) {
+    db.exec("ALTER TABLE builds ADD COLUMN held_item TEXT");
+  }
 }
 
 function parseTypes(value: string): string[] {
@@ -140,7 +150,8 @@ export function listPokemon(): PokemonSummary[] {
         op.created_at,
         (SELECT COUNT(*) FROM builds b2 WHERE b2.owned_pokemon_id = op.id) AS build_count,
         (SELECT ability FROM builds b3 WHERE b3.owned_pokemon_id = op.id ORDER BY b3.id LIMIT 1) AS ability,
-        (SELECT stat_alignment FROM builds b4 WHERE b4.owned_pokemon_id = op.id ORDER BY b4.id LIMIT 1) AS stat_alignment
+        (SELECT stat_alignment FROM builds b4 WHERE b4.owned_pokemon_id = op.id ORDER BY b4.id LIMIT 1) AS stat_alignment,
+        (SELECT held_item FROM builds b5 WHERE b5.owned_pokemon_id = op.id ORDER BY b5.id LIMIT 1) AS held_item
       FROM owned_pokemon op
       JOIN species s ON s.id = op.species_id
       ORDER BY op.created_at DESC, op.id DESC
@@ -156,6 +167,7 @@ export function listPokemon(): PokemonSummary[] {
     types: parseTypes(String(row.types_json)),
     ability: row.ability == null ? null : String(row.ability),
     statAlignment: row.stat_alignment == null ? null : String(row.stat_alignment),
+    heldItem: row.held_item == null ? null : String(row.held_item),
     ownershipStatus: row.ownership_status as PokemonSummary["ownershipStatus"],
     acquisitionSource: row.acquisition_source as PokemonSummary["acquisitionSource"],
     buildCount: Number(row.build_count),
@@ -211,9 +223,15 @@ export function createPokemon(input: CreatePokemonInput): PokemonSummary {
 
     db.prepare(`
       INSERT INTO builds
-        (owned_pokemon_id, name, ability, stat_alignment)
-      VALUES (?, ?, ?, ?)
-    `).run(Number(ownedResult.lastInsertRowid), input.buildName.trim(), input.ability ?? null, input.statAlignment ?? null);
+        (owned_pokemon_id, name, ability, stat_alignment, held_item)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      Number(ownedResult.lastInsertRowid),
+      input.buildName.trim(),
+      input.ability ?? null,
+      input.statAlignment ?? null,
+      input.heldItem ?? null,
+    );
 
     return Number(ownedResult.lastInsertRowid);
   });
@@ -309,14 +327,15 @@ function importOnePokemon(record: PokemonImportRecord): { pokemon: number; build
 
   const buildResult = db.prepare(`
     INSERT INTO builds
-      (owned_pokemon_id, name, battle_format, ability, stat_alignment, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (owned_pokemon_id, name, battle_format, ability, stat_alignment, held_item, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     ownedPokemonId,
     record.build.name,
     record.build.format,
     record.build.ability ?? null,
     record.build.statAlignment ?? null,
+    record.build.heldItem ?? null,
     record.build.notes ?? null,
   );
   const buildId = Number(buildResult.lastInsertRowid);
