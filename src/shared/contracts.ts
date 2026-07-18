@@ -91,6 +91,17 @@ export type PokemonSummary = {
   createdAt: string;
 };
 
+export type BuildSummary = {
+  id: number;
+  ownedPokemonId: number;
+  speciesName: string;
+  pokemonName: string;
+  buildName: string;
+  format: "single" | "double" | "both";
+  ability: string | null;
+  statAlignment: string | null;
+};
+
 export type TeamSummary = {
   id: number;
   name: string;
@@ -134,6 +145,9 @@ export type AppApi = {
     list(): Promise<PokemonSummary[]>;
     create(input: CreatePokemonInput): Promise<PokemonSummary>;
     remove(id: number): Promise<void>;
+  };
+  builds: {
+    list(): Promise<BuildSummary[]>;
   };
   teams: {
     list(): Promise<TeamSummary[]>;
