@@ -34,6 +34,7 @@ function PokemonCard({ pokemon, onRemove }: { pokemon: PokemonSummary; onRemove?
         </div>
         <dl className="mini-data">
           <div><dt>Habilidade</dt><dd>{pokemon.ability || "Não informada"}</dd></div>
+          <div><dt>Item</dt><dd>{pokemon.heldItem || "Nenhum"}</dd></div>
           <div><dt>Alinhamento</dt><dd>{pokemon.statAlignment || "Não informado"}</dd></div>
           <div><dt>Builds</dt><dd>{pokemon.buildCount}</dd></div>
         </dl>
@@ -92,12 +93,13 @@ function PokemonPage({ pokemon, refresh }: { pokemon: PokemonSummary[]; refresh:
     buildName: "Build principal",
     ability: "",
     statAlignment: "",
+    heldItem: "",
   });
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
     if (!normalized) return pokemon;
-    return pokemon.filter((item) => [item.speciesName, item.nickname, item.ability, item.statAlignment].some((value) => value?.toLocaleLowerCase("pt-BR").includes(normalized)));
+    return pokemon.filter((item) => [item.speciesName, item.nickname, item.ability, item.statAlignment, item.heldItem].some((value) => value?.toLocaleLowerCase("pt-BR").includes(normalized)));
   }, [pokemon, query]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -111,8 +113,9 @@ function PokemonPage({ pokemon, refresh }: { pokemon: PokemonSummary[]; refresh:
         nickname: form.nickname?.trim() || null,
         ability: form.ability?.trim() || null,
         statAlignment: form.statAlignment?.trim() || null,
+        heldItem: form.heldItem?.trim() || null,
       });
-      setForm({ ...form, speciesName: "", nationalDexNumber: null, nickname: "", ability: "", statAlignment: "" });
+      setForm({ ...form, speciesName: "", nationalDexNumber: null, nickname: "", ability: "", statAlignment: "", heldItem: "" });
       setShowForm(false);
       await refresh();
     } catch (caught) {
@@ -146,6 +149,7 @@ function PokemonPage({ pokemon, refresh }: { pokemon: PokemonSummary[]; refresh:
           <label>Apelido<input value={form.nickname ?? ""} onChange={(event) => setForm({ ...form, nickname: event.target.value })} /></label>
           <label>Forma<input value={form.formName ?? "default"} onChange={(event) => setForm({ ...form, formName: event.target.value })} /></label>
           <label>Habilidade<input value={form.ability ?? ""} onChange={(event) => setForm({ ...form, ability: event.target.value })} placeholder="Levitate" /></label>
+          <label>Item equipado<input value={form.heldItem ?? ""} onChange={(event) => setForm({ ...form, heldItem: event.target.value })} placeholder="Leftovers" /></label>
           <label>Stat Alignment<input value={form.statAlignment ?? ""} onChange={(event) => setForm({ ...form, statAlignment: event.target.value })} placeholder="Lonely" /></label>
           <label>Status<select value={form.ownershipStatus} onChange={(event) => setForm({ ...form, ownershipStatus: event.target.value as CreatePokemonInput["ownershipStatus"] })}><option value="permanent">Permanente</option><option value="trial">Teste</option><option value="visitor">Visitante</option></select></label>
           <label>Origem<select value={form.acquisitionSource} onChange={(event) => setForm({ ...form, acquisitionSource: event.target.value as CreatePokemonInput["acquisitionSource"] })}><option value="champions">Pokémon Champions</option><option value="pokemon_home">Pokémon HOME</option><option value="other">Outra</option></select></label>
@@ -155,7 +159,7 @@ function PokemonPage({ pokemon, refresh }: { pokemon: PokemonSummary[]; refresh:
         </form>
       ) : null}
 
-      <div className="toolbar"><input className="search-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar por nome, apelido, habilidade..." /><span>{filtered.length} registro(s)</span></div>
+      <div className="toolbar"><input className="search-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar por nome, apelido, habilidade ou item..." /><span>{filtered.length} registro(s)</span></div>
       {filtered.length === 0 ? <div className="empty-state">Nenhum Pokémon encontrado.</div> : <div className="card-grid">{filtered.map((item) => <PokemonCard key={item.id} pokemon={item} onRemove={(id) => void remove(id)} />)}</div>}
     </section>
   );
@@ -212,6 +216,7 @@ const sampleJson = `{
         "format": "both",
         "statAlignment": "Lonely",
         "ability": "Levitate",
+        "heldItem": "Leftovers",
         "moves": [
           { "slot": 1, "name": "Supercell Slam", "type": "electric", "pp": 16 },
           { "slot": 2, "name": "Superpower", "type": "fighting", "pp": 8 },
