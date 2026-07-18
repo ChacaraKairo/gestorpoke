@@ -44,6 +44,7 @@ export const pokemonImportRecordSchema = z.object({
     format: z.enum(["single", "double", "both"]).default("both"),
     statAlignment: z.string().trim().nullable().optional(),
     ability: z.string().trim().nullable().optional(),
+    heldItem: z.string().trim().nullable().optional(),
     moves: z.array(moveImportSchema).max(4).default([]),
     stats: z
       .object({
@@ -85,6 +86,7 @@ export type PokemonSummary = {
   types: string[];
   ability: string | null;
   statAlignment: string | null;
+  heldItem: string | null;
   ownershipStatus: "permanent" | "trial" | "visitor";
   acquisitionSource: "champions" | "pokemon_home" | "other";
   buildCount: number;
@@ -100,6 +102,7 @@ export type BuildSummary = {
   format: "single" | "double" | "both";
   ability: string | null;
   statAlignment: string | null;
+  heldItem: string | null;
 };
 
 export type TeamSummary = {
@@ -122,6 +125,7 @@ export type CreatePokemonInput = {
   buildName: string;
   ability?: string | null;
   statAlignment?: string | null;
+  heldItem?: string | null;
 };
 
 export type CreateTeamInput = {
