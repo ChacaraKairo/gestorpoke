@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { z } from "zod";
+import { listBuilds } from "./builds";
 import {
   closeDatabase,
   createPokemon,
@@ -42,6 +43,7 @@ function registerIpc(): void {
     const parsedId = z.number().int().positive().parse(id);
     removePokemon(parsedId);
   });
+  ipcMain.handle("builds:list", () => listBuilds());
   ipcMain.handle("teams:list", () => listTeams());
   ipcMain.handle("teams:create", (_event, input: unknown) => createTeam(createTeamSchema.parse(input)));
   ipcMain.handle("imports:validate", (_event, jsonText: unknown) => validateImport(z.string().parse(jsonText)));
