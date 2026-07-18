@@ -26,6 +26,7 @@ const createPokemonSchema = z.object({
   buildName: z.string().trim().min(1),
   ability: z.string().trim().nullable().optional(),
   statAlignment: z.string().trim().nullable().optional(),
+  heldItem: z.string().trim().nullable().optional(),
 });
 
 const createTeamSchema = z.object({
