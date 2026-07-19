@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { AbilityCatalogEntry, ItemCatalogEntry } from "../../shared/contracts";
 import { inferAbilityType, normalizeType, typeColors, typeLabels } from "../../shared/type-system";
 
 function decorateTypeBadge(element: HTMLElement): void {
@@ -23,9 +24,9 @@ function decorateMoveRows(root: ParentNode): void {
       typeCell.style.setProperty("--type-color", typeColors[type]);
     }
     if (name) {
-      name.classList.toggle("move-name-physical", category?.includes("physical") || category?.includes("fisico") || category?.includes("físico"));
-      name.classList.toggle("move-name-special", category?.includes("special") || category?.includes("especial"));
-      name.classList.toggle("move-name-status", category?.includes("status"));
+      name.classList.toggle("move-name-physical", Boolean(category?.includes("physical") || category?.includes("fisico") || category?.includes("físico")));
+      name.classList.toggle("move-name-special", Boolean(category?.includes("special") || category?.includes("especial")));
+      name.classList.toggle("move-name-status", Boolean(category?.includes("status")));
       if (type) name.style.setProperty("--move-glow", typeColors[type]);
     }
   });
@@ -53,14 +54,57 @@ function decorateAbilities(root: ParentNode): void {
   });
 }
 
+function createCatalogList(id: string, rows: Array<AbilityCatalogEntry | ItemCatalogEntry>): HTMLDataListElement {
+  document.getElementById(id)?.remove();
+  const list = document.createElement("datalist");
+  list.id = id;
+  rows.filter((row) => row.availability !== "unavailable").forEach((row) => {
+    const option = document.createElement("option");
+    option.value = row.name;
+    option.label = row.description ? `${row.name} — ${row.description}` : row.name;
+    list.append(option);
+  });
+  document.body.append(list);
+  return list;
+}
+
+function connectCatalogInputs(root: ParentNode): void {
+  root.querySelectorAll<HTMLLabelElement>("label").forEach((label) => {
+    const input = label.querySelector<HTMLInputElement>('input:not([type="file"])');
+    if (!input) return;
+    const text = (label.childNodes[0]?.textContent ?? label.textContent ?? "").trim().toLowerCase();
+    if (text.startsWith("habilidade")) {
+      input.setAttribute("list", "gestorpoke-abilities-catalog");
+      input.placeholder = "Pesquisar habilidade no catálogo...";
+      input.autocomplete = "off";
+    }
+    if (text.startsWith("item equipado")) {
+      input.setAttribute("list", "gestorpoke-items-catalog");
+      input.placeholder = "Pesquisar item no catálogo...";
+      input.autocomplete = "off";
+    }
+  });
+}
+
 function decorate(root: ParentNode): void {
   root.querySelectorAll<HTMLElement>(".type-badge").forEach(decorateTypeBadge);
   decorateMoveRows(root);
   decorateAbilities(root);
+  connectCatalogInputs(root);
 }
 
 export function VisualEnhancer() {
   useEffect(() => {
+    let disposed = false;
+    Promise.all([window.gestorPoke.abilities.list(), window.gestorPoke.items.list()])
+      .then(([abilities, items]) => {
+        if (disposed) return;
+        createCatalogList("gestorpoke-abilities-catalog", abilities);
+        createCatalogList("gestorpoke-items-catalog", items);
+        decorate(document);
+      })
+      .catch((error) => console.error("Não foi possível carregar os catálogos dos formulários.", error));
+
     decorate(document);
     let scheduled = false;
     const observer = new MutationObserver(() => {
@@ -72,7 +116,12 @@ export function VisualEnhancer() {
       });
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      document.getElementById("gestorpoke-abilities-catalog")?.remove();
+      document.getElementById("gestorpoke-items-catalog")?.remove();
+    };
   }, []);
   return null;
 }
