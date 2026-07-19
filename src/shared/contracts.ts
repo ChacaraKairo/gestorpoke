@@ -40,208 +40,89 @@ export const pokemonImportRecordSchema = z.object({
     heldItem: z.string().trim().nullable().optional(),
     moves: z.array(moveImportSchema).max(4).default([]),
     stats: z.object({
-      hp: statValueSchema.optional(),
-      attack: statValueSchema.optional(),
-      defense: statValueSchema.optional(),
-      specialAttack: statValueSchema.optional(),
-      specialDefense: statValueSchema.optional(),
-      speed: statValueSchema.optional(),
+      hp: statValueSchema.optional(), attack: statValueSchema.optional(), defense: statValueSchema.optional(),
+      specialAttack: statValueSchema.optional(), specialDefense: statValueSchema.optional(), speed: statValueSchema.optional(),
     }).optional(),
     notes: z.string().trim().nullable().optional(),
   }),
 });
 
 export const pokemonImportFileSchema = z.object({
-  schemaVersion: z.literal(1),
-  game: z.literal("pokemon-champions"),
-  source: z.unknown().optional(),
+  schemaVersion: z.literal(1), game: z.literal("pokemon-champions"), source: z.unknown().optional(),
   pokemon: z.array(pokemonImportRecordSchema).min(1),
 });
 
 export type PokemonImportFile = z.infer<typeof pokemonImportFileSchema>;
 export type PokemonImportRecord = z.infer<typeof pokemonImportRecordSchema>;
 
-export type DashboardSummary = {
-  ownedPokemon: number;
-  builds: number;
-  teams: number;
-  recentPokemon: PokemonSummary[];
-};
+export type DashboardSummary = { ownedPokemon: number; builds: number; teams: number; recentPokemon: PokemonSummary[] };
 
 export type PokemonSummary = {
-  id: number;
-  speciesName: string;
-  nationalDexNumber: number | null;
-  nickname: string | null;
-  formName: string;
-  types: string[];
-  imageUrl?: string | null;
-  ability: string | null;
-  statAlignment: string | null;
-  heldItem: string | null;
-  ownershipStatus: "permanent" | "trial" | "visitor";
-  acquisitionSource: "champions" | "pokemon_home" | "other";
-  buildCount: number;
-  createdAt: string;
+  id: number; speciesName: string; nationalDexNumber: number | null; nickname: string | null; formName: string;
+  types: string[]; imageUrl?: string | null; ability: string | null; statAlignment: string | null; heldItem: string | null;
+  ownershipStatus: "permanent" | "trial" | "visitor"; acquisitionSource: "champions" | "pokemon_home" | "other";
+  buildCount: number; createdAt: string;
 };
 
 export type PokedexEntry = {
-  id: number;
-  speciesName: string;
-  nationalDexNumber: number | null;
-  formName: string;
-  types: string[];
-  imageUrl: string | null;
-  ownedCount: number;
-  buildCount: number;
-  firstSeenAt: string;
+  id: number; speciesName: string; nationalDexNumber: number | null; formName: string; types: string[]; imageUrl: string | null;
+  ownedCount: number; buildCount: number; firstSeenAt: string;
 };
 
 export type CatalogStatus = {
-  speciesCount: number;
-  moveCount: number;
-  synchronizedAt: string | null;
-  source: string;
+  speciesCount: number; moveCount: number; abilityCount: number; itemCount: number;
+  synchronizedAt: string | null; source: string;
 };
-
-export type CatalogSyncResult = CatalogStatus & {
-  imported: number;
-  updated: number;
-};
+export type CatalogSyncResult = CatalogStatus & { imported: number; updated: number };
 
 export type MoveCatalogEntry = {
-  id: number;
-  name: string;
-  type: string | null;
-  category: "physical" | "special" | "status" | null;
-  power: number | null;
-  accuracy: number | null;
-  pp: number | null;
-  priority: number;
-  target: string | null;
-  description: string | null;
-  availability: AvailabilityStatus;
+  id: number; name: string; type: string | null; category: "physical" | "special" | "status" | null;
+  power: number | null; accuracy: number | null; pp: number | null; priority: number; target: string | null;
+  description: string | null; availability: AvailabilityStatus;
 };
+export type AbilityCatalogEntry = { id: number; name: string; description: string | null; availability: AvailabilityStatus };
+export type ItemCatalogEntry = { id: number; name: string; description: string | null; imageUrl: string | null; availability: AvailabilityStatus };
 
-export type BuildMove = {
-  slot: 1 | 2 | 3 | 4;
-  name: string;
-  type: string | null;
-  pp: number | null;
-};
-
-export type BuildStat = {
-  statCode: StatCode;
-  finalValue: number | null;
-  trainingPoints: number | null;
-  modifier: StatModifier;
-};
-
+export type BuildMove = { slot: 1 | 2 | 3 | 4; name: string; type: string | null; pp: number | null };
+export type BuildStat = { statCode: StatCode; finalValue: number | null; trainingPoints: number | null; modifier: StatModifier };
 export type BuildSummary = {
-  id: number;
-  ownedPokemonId: number;
-  speciesName: string;
-  pokemonName: string;
-  imageUrl?: string | null;
-  buildName: string;
-  format: BattleFormat;
-  ability: string | null;
-  statAlignment: string | null;
-  heldItem: string | null;
+  id: number; ownedPokemonId: number; speciesName: string; pokemonName: string; imageUrl?: string | null;
+  buildName: string; format: BattleFormat; ability: string | null; statAlignment: string | null; heldItem: string | null;
 };
-
-export type BuildDetail = BuildSummary & {
-  notes: string | null;
-  moves: BuildMove[];
-  stats: BuildStat[];
-};
-
+export type BuildDetail = BuildSummary & { notes: string | null; moves: BuildMove[]; stats: BuildStat[] };
 export type UpsertBuildInput = {
-  ownedPokemonId: number;
-  name: string;
-  format: BattleFormat;
-  ability?: string | null;
-  statAlignment?: string | null;
-  heldItem?: string | null;
-  notes?: string | null;
-  moves: BuildMove[];
-  stats: BuildStat[];
+  ownedPokemonId: number; name: string; format: BattleFormat; ability?: string | null; statAlignment?: string | null;
+  heldItem?: string | null; notes?: string | null; moves: BuildMove[]; stats: BuildStat[];
 };
 
 export type TeamMember = BuildSummary & { position: number };
-
-export type TeamSummary = {
-  id: number;
-  name: string;
-  format: "single" | "double";
-  description: string | null;
-  memberCount: number;
-  createdAt: string;
-};
-
+export type TeamSummary = { id: number; name: string; format: "single" | "double"; description: string | null; memberCount: number; createdAt: string };
 export type TeamDetail = TeamSummary & { members: TeamMember[] };
-
-export type UpsertTeamInput = {
-  name: string;
-  format: "single" | "double";
-  description?: string | null;
-  buildIds: number[];
-};
+export type UpsertTeamInput = { name: string; format: "single" | "double"; description?: string | null; buildIds: number[] };
 export type CreateTeamInput = UpsertTeamInput;
 
 export type CreatePokemonInput = {
-  speciesName: string;
-  nationalDexNumber?: number | null;
-  nickname?: string | null;
-  formName?: string;
-  types?: string[];
-  ownershipStatus: "permanent" | "trial" | "visitor";
-  acquisitionSource: "champions" | "pokemon_home" | "other";
-  buildName: string;
-  ability?: string | null;
-  statAlignment?: string | null;
-  heldItem?: string | null;
+  speciesName: string; nationalDexNumber?: number | null; nickname?: string | null; formName?: string; types?: string[];
+  ownershipStatus: "permanent" | "trial" | "visitor"; acquisitionSource: "champions" | "pokemon_home" | "other";
+  buildName: string; ability?: string | null; statAlignment?: string | null; heldItem?: string | null;
 };
 
-export type ImportResult = {
-  importedPokemon: number;
-  importedBuilds: number;
-  warnings: string[];
-};
+export type ImportResult = { importedPokemon: number; importedBuilds: number; warnings: string[] };
 
 export type AppApi = {
   dashboard: { getSummary(): Promise<DashboardSummary> };
-  pokemon: {
-    list(): Promise<PokemonSummary[]>;
-    create(input: CreatePokemonInput): Promise<PokemonSummary>;
-    remove(id: number): Promise<void>;
-  };
-  pokedex: {
-    list(): Promise<PokedexEntry[]>;
-    status(): Promise<CatalogStatus>;
-    synchronize(): Promise<CatalogSyncResult>;
-  };
-  moves: {
-    list(): Promise<MoveCatalogEntry[]>;
-    synchronize(): Promise<CatalogSyncResult>;
-  };
+  pokemon: { list(): Promise<PokemonSummary[]>; create(input: CreatePokemonInput): Promise<PokemonSummary>; remove(id: number): Promise<void> };
+  pokedex: { list(): Promise<PokedexEntry[]>; status(): Promise<CatalogStatus>; synchronize(): Promise<CatalogSyncResult> };
+  moves: { list(): Promise<MoveCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
+  abilities: { list(): Promise<AbilityCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
+  items: { list(): Promise<ItemCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
   builds: {
-    list(): Promise<BuildSummary[]>;
-    get(id: number): Promise<BuildDetail>;
-    create(input: UpsertBuildInput): Promise<BuildDetail>;
-    update(id: number, input: UpsertBuildInput): Promise<BuildDetail>;
-    remove(id: number): Promise<void>;
-    duplicate(id: number): Promise<BuildDetail>;
+    list(): Promise<BuildSummary[]>; get(id: number): Promise<BuildDetail>; create(input: UpsertBuildInput): Promise<BuildDetail>;
+    update(id: number, input: UpsertBuildInput): Promise<BuildDetail>; remove(id: number): Promise<void>; duplicate(id: number): Promise<BuildDetail>;
   };
   teams: {
-    list(): Promise<TeamSummary[]>;
-    get(id: number): Promise<TeamDetail>;
-    create(input: UpsertTeamInput): Promise<TeamDetail>;
-    update(id: number, input: UpsertTeamInput): Promise<TeamDetail>;
-    remove(id: number): Promise<void>;
+    list(): Promise<TeamSummary[]>; get(id: number): Promise<TeamDetail>; create(input: UpsertTeamInput): Promise<TeamDetail>;
+    update(id: number, input: UpsertTeamInput): Promise<TeamDetail>; remove(id: number): Promise<void>;
   };
-  imports: {
-    validate(jsonText: string): Promise<{ valid: boolean; errors: string[]; count: number }>;
-    execute(jsonText: string): Promise<ImportResult>;
-  };
+  imports: { validate(jsonText: string): Promise<{ valid: boolean; errors: string[]; count: number }>; execute(jsonText: string): Promise<ImportResult> };
 };
