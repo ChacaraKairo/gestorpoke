@@ -2,8 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import type {
   AppApi,
   CreatePokemonInput,
-  CreateTeamInput,
   UpsertBuildInput,
+  UpsertTeamInput,
 } from "../shared/contracts";
 
 const api: AppApi = {
@@ -20,6 +20,10 @@ const api: AppApi = {
     status: () => ipcRenderer.invoke("pokedex:status"),
     synchronize: () => ipcRenderer.invoke("pokedex:synchronize"),
   },
+  moves: {
+    list: () => ipcRenderer.invoke("moves:list"),
+    synchronize: () => ipcRenderer.invoke("moves:synchronize"),
+  },
   builds: {
     list: () => ipcRenderer.invoke("builds:list"),
     get: (id: number) => ipcRenderer.invoke("builds:get", id),
@@ -30,7 +34,10 @@ const api: AppApi = {
   },
   teams: {
     list: () => ipcRenderer.invoke("teams:list"),
-    create: (input: CreateTeamInput) => ipcRenderer.invoke("teams:create", input),
+    get: (id: number) => ipcRenderer.invoke("teams:get", id),
+    create: (input: UpsertTeamInput) => ipcRenderer.invoke("teams:create", input),
+    update: (id: number, input: UpsertTeamInput) => ipcRenderer.invoke("teams:update", id, input),
+    remove: (id: number) => ipcRenderer.invoke("teams:remove", id),
   },
   imports: {
     validate: (jsonText: string) => ipcRenderer.invoke("imports:validate", jsonText),
