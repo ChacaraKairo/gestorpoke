@@ -17,6 +17,8 @@ const api: AppApi = {
   },
   pokedex: {
     list: () => ipcRenderer.invoke("pokedex:list"),
+    status: () => ipcRenderer.invoke("pokedex:status"),
+    synchronize: () => ipcRenderer.invoke("pokedex:synchronize"),
   },
   builds: {
     list: () => ipcRenderer.invoke("builds:list"),
