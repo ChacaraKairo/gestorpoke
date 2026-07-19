@@ -3,6 +3,7 @@ import type {
   MoveCatalogEntry,
   PokemonCompatibility,
 } from "../shared/contracts";
+import { resolvePokemonApiIdentifiers } from "../shared/pokemon-form";
 import { getDatabase } from "./database";
 
 const POKEAPI_BASE_URL = "https://pokeapi.co/api/v2";
@@ -34,37 +35,6 @@ async function fetchJson<T>(url: string): Promise<T> {
   });
   if (!response.ok) throw new Error(`Falha ao consultar compatibilidade (${response.status} ${response.statusText}).`);
   return response.json() as Promise<T>;
-}
-
-function normalizeIdentifier(value: string): string {
-  return value.trim().toLowerCase().replace(/[.'’]/g, "").replace(/[\s_]+/g, "-").replace(/-+/g, "-");
-}
-
-export function resolvePokemonApiIdentifiers(
-  speciesName: string,
-  formName: string,
-  nationalDexNumber: number | null,
-): Array<string | number> {
-  const species = normalizeIdentifier(speciesName);
-  const form = normalizeIdentifier(formName || "default");
-  const identifiers: Array<string | number> = [];
-
-  if (form && form !== "default" && form !== "normal" && form !== "standard") {
-    if (form.startsWith(`${species}-`)) identifiers.push(form);
-    else identifiers.push(`${species}-${form}`);
-
-    const regionalAliases: Record<string, string> = {
-      alola: `${species}-alola`,
-      galar: `${species}-galar`,
-      hisui: `${species}-hisui`,
-      paldea: `${species}-paldea`,
-    };
-    if (regionalAliases[form]) identifiers.push(regionalAliases[form]);
-  }
-
-  if (nationalDexNumber != null) identifiers.push(nationalDexNumber);
-  identifiers.push(species);
-  return Array.from(new Set(identifiers));
 }
 
 async function fetchPokemonForForm(
