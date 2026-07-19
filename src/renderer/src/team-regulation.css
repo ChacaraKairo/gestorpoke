@@ -1,0 +1,44 @@
+.team-regulation-trigger {
+  position: fixed;
+  right: 24px;
+  bottom: 78px;
+  z-index: 70;
+  border: 1px solid rgba(255,214,87,.5);
+  border-radius: 16px 16px 16px 5px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(255,214,87,.95), rgba(255,142,67,.95));
+  color: #11172b;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 16px 42px rgba(0,0,0,.38);
+}
+.team-regulation-trigger span { margin-right: 8px; }
+.team-regulation-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 28px; background: rgba(2,5,15,.78); backdrop-filter: blur(14px); }
+.team-regulation-modal { width: min(1180px, 96vw); max-height: 92vh; overflow: auto; border: 1px solid rgba(255,255,255,.16); border-radius: 30px 30px 30px 8px; background: linear-gradient(145deg, rgba(31,41,83,.98), rgba(10,15,37,.99)); box-shadow: 0 34px 100px rgba(0,0,0,.6); padding: 26px; }
+.team-regulation-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.team-regulation-modal h1 { margin: 4px 0 8px; font-size: 38px; }
+.team-regulation-modal p { color: #b8c3e5; margin: 0; }
+.team-regulation-layout { display: grid; grid-template-columns: 280px minmax(0,1fr); gap: 20px; }
+.team-regulation-layout > aside { min-height: 420px; padding: 18px; border: 1px solid rgba(255,255,255,.1); border-radius: 22px 22px 22px 7px; background: rgba(7,12,31,.56); }
+.team-regulation-layout > aside h2 { margin-top: 0; }
+.team-regulation-layout > aside button { width: 100%; display: grid; gap: 3px; margin-bottom: 9px; padding: 13px; text-align: left; border: 1px solid transparent; border-radius: 15px; background: rgba(255,255,255,.045); cursor: pointer; }
+.team-regulation-layout > aside button.active { border-color: rgba(84,228,224,.65); background: rgba(84,228,224,.13); box-shadow: inset 4px 0 #54e4e0; }
+.team-regulation-layout > aside small, .team-regulation-layout > aside em { color: #9ca9cf; font-style: normal; }
+.team-regulation-layout > main { min-width: 0; padding: 18px; border: 1px solid rgba(255,255,255,.1); border-radius: 22px 22px 22px 7px; background: rgba(13,20,48,.66); }
+.regulation-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.regulation-choice button { min-height: 112px; padding: 18px; display: grid; gap: 8px; text-align: left; border: 1px solid rgba(255,255,255,.12); border-radius: 20px 20px 20px 6px; background: rgba(255,255,255,.04); cursor: pointer; }
+.regulation-choice button strong { font-size: 18px; }
+.regulation-choice button span { color: #aeb9db; }
+.regulation-choice button.active { border-color: rgba(84,228,224,.7); box-shadow: inset 0 0 0 2px rgba(84,228,224,.22); background: rgba(84,228,224,.1); }
+.regulation-choice button.champions.active { border-color: rgba(255,214,87,.75); background: linear-gradient(145deg, rgba(255,214,87,.18), rgba(255,117,73,.08)); box-shadow: inset 0 0 0 2px rgba(255,214,87,.18); }
+.regulation-members { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.regulation-members article { min-width: 0; display: grid; grid-template-columns: 54px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 11px; border: 1px solid rgba(255,255,255,.1); border-radius: 17px; background: rgba(255,255,255,.045); }
+.regulation-members article img { width: 54px; height: 54px; object-fit: contain; }
+.regulation-members article span { min-width: 0; display: grid; }
+.regulation-members article small { color: #9ca9cf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.regulation-members article em { font-style: normal; font-size: 11px; font-weight: 850; text-transform: uppercase; color: #70e7b2; }
+.regulation-members article.blocked { border-color: rgba(255,102,131,.55); background: rgba(255,102,131,.1); }
+.regulation-members article.blocked em { color: #ff9bad; }
+.regulation-warning { margin-top: 16px; padding: 14px; border: 1px solid rgba(255,102,131,.45); border-radius: 14px; background: rgba(255,102,131,.1); color: #ffc0ca; }
+.team-regulation-empty { min-height: 360px; display: grid; place-items: center; color: #aeb9db; text-align: center; }
+@media (max-width: 1000px) { .team-regulation-layout { grid-template-columns: 1fr; } .regulation-members { grid-template-columns: 1fr; } }
