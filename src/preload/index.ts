@@ -1,15 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type {
-  AppApi,
-  CreatePokemonInput,
-  UpsertBuildInput,
-  UpsertTeamInput,
-} from "../shared/contracts";
+import type { AppApi, CreatePokemonInput, UpsertBuildInput, UpsertTeamInput } from "../shared/contracts";
 
 const api: AppApi = {
-  dashboard: {
-    getSummary: () => ipcRenderer.invoke("dashboard:get-summary"),
-  },
+  dashboard: { getSummary: () => ipcRenderer.invoke("dashboard:get-summary") },
   pokemon: {
     list: () => ipcRenderer.invoke("pokemon:list"),
     create: (input: CreatePokemonInput) => ipcRenderer.invoke("pokemon:create", input),
@@ -23,6 +16,14 @@ const api: AppApi = {
   moves: {
     list: () => ipcRenderer.invoke("moves:list"),
     synchronize: () => ipcRenderer.invoke("moves:synchronize"),
+  },
+  abilities: {
+    list: () => ipcRenderer.invoke("abilities:list"),
+    synchronize: () => ipcRenderer.invoke("abilities:synchronize"),
+  },
+  items: {
+    list: () => ipcRenderer.invoke("items:list"),
+    synchronize: () => ipcRenderer.invoke("items:synchronize"),
   },
   builds: {
     list: () => ipcRenderer.invoke("builds:list"),
