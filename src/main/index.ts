@@ -1,13 +1,16 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { z } from "zod";
-import { createBuild, duplicateBuild, getBuild, listBuilds, removeBuild, updateBuild } from "./builds";
+import { createBattle, getBattleStats, listBattles, removeBattle } from "./battles";
+import { compareBuilds, createBuild, duplicateBuild, getBuild, listBuilds, removeBuild, setPrimaryBuild, updateBuild } from "./builds";
 import { getCatalogStatus, listAbilities, listItems, listMoves, synchronizeAbilities, synchronizeItems, synchronizeMoves, synchronizePokedex } from "./catalog";
 import { getPokemonCompatibility, synchronizePokemonCompatibility } from "./compatibility";
 import { closeDatabase, createPokemon, executeImport, getDashboardSummary, getDatabase, listPokemon, removePokemon, validateImport } from "./database";
+import { previewImport } from "./import-review";
 import { getOwnedPokemonDetail, updateOwnedPokemon } from "./pokemon-management";
 import { listPokedex } from "./pokedex";
-import { createDatabaseBackup, exportCompleteJson } from "./system-data";
+import { createDatabaseBackup, exportCompleteJson, restoreDatabaseBackup } from "./system-data";
+import { analyzeTeam } from "./team-analysis";
 import { createTeam, getTeam, listTeams, removeTeam, updateTeam, validateTeam } from "./teams";
 
 const positiveIdSchema = z.number().int().positive();
@@ -17,6 +20,7 @@ const upsertTeamSchema = z.object({ name:z.string().trim().min(1), format:z.enum
 const buildMoveSchema = z.object({ slot:z.union([z.literal(1),z.literal(2),z.literal(3),z.literal(4)]), name:z.string().trim().min(1), type:z.string().trim().nullable(), pp:z.number().int().nonnegative().nullable() });
 const buildStatSchema = z.object({ statCode:z.enum(["hp","attack","defense","specialAttack","specialDefense","speed"]), finalValue:z.number().int().nonnegative().nullable(), trainingPoints:z.number().int().nonnegative().nullable(), modifier:z.enum(["increased","decreased","neutral"]) });
 const upsertBuildSchema = z.object({ ownedPokemonId:positiveIdSchema, name:z.string().trim().min(1), format:z.enum(["single","double","both"]), ability:z.string().trim().nullable().optional(), statAlignment:z.string().trim().nullable().optional(), heldItem:z.string().trim().nullable().optional(), notes:z.string().trim().nullable().optional(), moves:z.array(buildMoveSchema).max(4), stats:z.array(buildStatSchema).max(6) });
+const battleSchema = z.object({ teamId:positiveIdSchema, opponent:z.string().trim().max(200).nullable().optional(), result:z.enum(["win","loss","draw"]), selectedBuildIds:z.array(positiveIdSchema).min(1).max(6), leadBuildIds:z.array(positiveIdSchema).min(1).max(2), notes:z.string().trim().max(10000).nullable().optional(), playedAt:z.string().datetime().optional() });
 
 function registerIpc(): void {
   ipcMain.handle("dashboard:get-summary", () => getDashboardSummary());
@@ -42,15 +46,24 @@ function registerIpc(): void {
   ipcMain.handle("builds:update", (_event,id:unknown,input:unknown) => updateBuild(positiveIdSchema.parse(id),upsertBuildSchema.parse(input)));
   ipcMain.handle("builds:remove", (_event,id:unknown) => removeBuild(positiveIdSchema.parse(id)));
   ipcMain.handle("builds:duplicate", (_event,id:unknown) => duplicateBuild(positiveIdSchema.parse(id)));
+  ipcMain.handle("builds:set-primary", (_event,id:unknown) => setPrimaryBuild(positiveIdSchema.parse(id)));
+  ipcMain.handle("builds:compare", (_event,left:unknown,right:unknown) => compareBuilds(positiveIdSchema.parse(left),positiveIdSchema.parse(right)));
   ipcMain.handle("teams:list", () => listTeams());
   ipcMain.handle("teams:get", (_event,id:unknown) => getTeam(positiveIdSchema.parse(id)));
   ipcMain.handle("teams:create", (_event,input:unknown) => createTeam(upsertTeamSchema.parse(input)));
   ipcMain.handle("teams:update", (_event,id:unknown,input:unknown) => updateTeam(positiveIdSchema.parse(id),upsertTeamSchema.parse(input)));
   ipcMain.handle("teams:remove", (_event,id:unknown) => removeTeam(positiveIdSchema.parse(id)));
   ipcMain.handle("teams:validate", (_event,id:unknown) => validateTeam(positiveIdSchema.parse(id)));
+  ipcMain.handle("teams:analyze", (_event,id:unknown) => analyzeTeam(positiveIdSchema.parse(id)));
+  ipcMain.handle("battles:list", () => listBattles());
+  ipcMain.handle("battles:create", (_event,input:unknown) => createBattle(battleSchema.parse(input)));
+  ipcMain.handle("battles:remove", (_event,id:unknown) => removeBattle(positiveIdSchema.parse(id)));
+  ipcMain.handle("battles:stats", () => getBattleStats());
   ipcMain.handle("imports:validate", (_event,jsonText:unknown) => validateImport(z.string().max(10_000_000).parse(jsonText)));
+  ipcMain.handle("imports:preview", (_event,jsonText:unknown) => previewImport(z.string().max(10_000_000).parse(jsonText)));
   ipcMain.handle("imports:execute", (_event,jsonText:unknown) => executeImport(z.string().max(10_000_000).parse(jsonText)));
   ipcMain.handle("data:backup", () => createDatabaseBackup());
+  ipcMain.handle("data:restore", () => restoreDatabaseBackup());
   ipcMain.handle("data:export-json", () => exportCompleteJson());
 }
 
