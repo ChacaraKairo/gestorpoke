@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { AppV2 } from "./AppV2";
-import { BuildFormCompatibility } from "./BuildFormCompatibility";
 import { CompatibilityOverlay } from "./CompatibilityOverlay";
 import { CompetitiveWorkspaceOverlay } from "./CompetitiveWorkspaceOverlay";
 import { ImageCacheEnhancer } from "./ImageCacheEnhancer";
@@ -19,7 +18,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <AppV2 />
     <VisualEnhancer />
     <ImageCacheEnhancer />
-    <BuildFormCompatibility />
     <TypeAnalysisOverlay />
     <TeamRegulationOverlay />
     <CompatibilityOverlay />
