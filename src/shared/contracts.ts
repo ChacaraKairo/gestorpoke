@@ -34,9 +34,10 @@ export type CompatibleMove = MoveCatalogEntry & { methods: string[]; versionGrou
 export type PokemonCompatibility = { ownedPokemonId: number; speciesName: string; formName: string; synchronizedAt: string | null; abilities: CompatibleAbility[]; moves: CompatibleMove[] };
 export type BuildMove = { slot: 1 | 2 | 3 | 4; name: string; type: string | null; pp: number | null };
 export type BuildStat = { statCode: StatCode; finalValue: number | null; trainingPoints: number | null; modifier: StatModifier };
-export type BuildSummary = { id: number; ownedPokemonId: number; speciesName: string; pokemonName: string; imageUrl?: string | null; buildName: string; format: BattleFormat; ability: string | null; statAlignment: string | null; heldItem: string | null };
+export type BuildSummary = { id: number; ownedPokemonId: number; speciesName: string; pokemonName: string; imageUrl?: string | null; buildName: string; format: BattleFormat; ability: string | null; statAlignment: string | null; heldItem: string | null; isPrimary: boolean };
 export type BuildDetail = BuildSummary & { notes: string | null; moves: BuildMove[]; stats: BuildStat[] };
 export type UpsertBuildInput = { ownedPokemonId: number; name: string; format: BattleFormat; ability?: string | null; statAlignment?: string | null; heldItem?: string | null; notes?: string | null; moves: BuildMove[]; stats: BuildStat[] };
+export type BuildComparison = { left: BuildDetail; right: BuildDetail; differences: Array<{ field: string; left: string; right: string }> };
 export type TeamMember = BuildSummary & { position: number };
 export type TeamSummary = { id: number; name: string; format: "single" | "double"; regulationKey: TeamRegulationKey; description: string | null; memberCount: number; createdAt: string };
 export type TeamDetail = TeamSummary & { members: TeamMember[] };
@@ -44,10 +45,18 @@ export type UpsertTeamInput = { name: string; format: "single" | "double"; regul
 export type CreateTeamInput = UpsertTeamInput;
 export type CreatePokemonInput = { speciesName: string; nationalDexNumber?: number | null; nickname?: string | null; formName?: string; types?: string[]; ownershipStatus: "permanent" | "trial" | "visitor"; acquisitionSource: "champions" | "pokemon_home" | "other"; buildName: string; ability?: string | null; statAlignment?: string | null; heldItem?: string | null };
 export type ImportResult = { importedPokemon: number; importedBuilds: number; warnings: string[] };
+export type ImportPreview = { valid: boolean; count: number; errors: string[]; duplicates: Array<{ index: number; speciesName: string; nickname: string | null; existingPokemonIds: number[] }> };
 export type FileOperationResult = { canceled: boolean; filePath: string | null; bytes: number; createdAt: string | null };
 export type TeamValidationSeverity = "error" | "warning" | "success";
 export type TeamValidationIssue = { code: string; severity: TeamValidationSeverity; message: string };
 export type TeamValidationResult = { teamId: number; valid: boolean; issues: TeamValidationIssue[] };
+export type OffensiveCoverageRow = { defendingType: string; superEffectiveMoveCount: number; moveNames: string[]; uncovered: boolean };
+export type DoubleBattleInsight = { severity: "info" | "warning" | "success"; code: string; message: string };
+export type TeamAnalysis = { teamId: number; physicalMoves: number; specialMoves: number; statusMoves: number; priorityMoves: number; coverage: OffensiveCoverageRow[]; doubleBattleInsights: DoubleBattleInsight[] };
+export type BattleResult = "win" | "loss" | "draw";
+export type BattleRecord = { id: number; teamId: number; teamName: string; format: "single" | "double"; opponent: string | null; result: BattleResult; selectedBuildIds: number[]; leadBuildIds: number[]; notes: string | null; playedAt: string };
+export type CreateBattleInput = { teamId: number; opponent?: string | null; result: BattleResult; selectedBuildIds: number[]; leadBuildIds: number[]; notes?: string | null; playedAt?: string };
+export type BattleStats = { total: number; wins: number; losses: number; draws: number; winRate: number; mostUsedTeam: string | null };
 
 export type AppApi = {
   dashboard: { getSummary(): Promise<DashboardSummary> };
@@ -57,8 +66,9 @@ export type AppApi = {
   abilities: { list(): Promise<AbilityCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
   items: { list(): Promise<ItemCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
   compatibility: { get(ownedPokemonId: number): Promise<PokemonCompatibility>; synchronize(ownedPokemonId: number): Promise<PokemonCompatibility> };
-  builds: { list(): Promise<BuildSummary[]>; get(id: number): Promise<BuildDetail>; create(input: UpsertBuildInput): Promise<BuildDetail>; update(id: number, input: UpsertBuildInput): Promise<BuildDetail>; remove(id: number): Promise<void>; duplicate(id: number): Promise<BuildDetail> };
-  teams: { list(): Promise<TeamSummary[]>; get(id: number): Promise<TeamDetail>; create(input: UpsertTeamInput): Promise<TeamDetail>; update(id: number, input: UpsertTeamInput): Promise<TeamDetail>; remove(id: number): Promise<void>; validate(id: number): Promise<TeamValidationResult> };
-  imports: { validate(jsonText: string): Promise<{ valid: boolean; errors: string[]; count: number }>; execute(jsonText: string): Promise<ImportResult> };
-  data: { backup(): Promise<FileOperationResult>; exportJson(): Promise<FileOperationResult> };
+  builds: { list(): Promise<BuildSummary[]>; get(id: number): Promise<BuildDetail>; create(input: UpsertBuildInput): Promise<BuildDetail>; update(id: number, input: UpsertBuildInput): Promise<BuildDetail>; remove(id: number): Promise<void>; duplicate(id: number): Promise<BuildDetail>; setPrimary(id: number): Promise<BuildDetail>; compare(leftId: number, rightId: number): Promise<BuildComparison> };
+  teams: { list(): Promise<TeamSummary[]>; get(id: number): Promise<TeamDetail>; create(input: UpsertTeamInput): Promise<TeamDetail>; update(id: number, input: UpsertTeamInput): Promise<TeamDetail>; remove(id: number): Promise<void>; validate(id: number): Promise<TeamValidationResult>; analyze(id: number): Promise<TeamAnalysis> };
+  battles: { list(): Promise<BattleRecord[]>; create(input: CreateBattleInput): Promise<BattleRecord>; remove(id: number): Promise<void>; stats(): Promise<BattleStats> };
+  imports: { validate(jsonText: string): Promise<{ valid: boolean; errors: string[]; count: number }>; preview(jsonText: string): Promise<ImportPreview>; execute(jsonText: string): Promise<ImportResult> };
+  data: { backup(): Promise<FileOperationResult>; restore(): Promise<FileOperationResult>; exportJson(): Promise<FileOperationResult> };
 };
