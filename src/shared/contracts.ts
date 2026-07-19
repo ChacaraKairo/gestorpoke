@@ -75,7 +75,7 @@ export type PokemonSummary = {
   nickname: string | null;
   formName: string;
   types: string[];
-  imageUrl: string | null;
+  imageUrl?: string | null;
   ability: string | null;
   statAlignment: string | null;
   heldItem: string | null;
@@ -142,7 +142,7 @@ export type BuildSummary = {
   ownedPokemonId: number;
   speciesName: string;
   pokemonName: string;
-  imageUrl: string | null;
+  imageUrl?: string | null;
   buildName: string;
   format: BattleFormat;
   ability: string | null;
@@ -187,6 +187,7 @@ export type UpsertTeamInput = {
   description?: string | null;
   buildIds: number[];
 };
+export type CreateTeamInput = UpsertTeamInput;
 
 export type CreatePokemonInput = {
   speciesName: string;
