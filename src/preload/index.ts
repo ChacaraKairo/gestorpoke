@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AppApi, CreatePokemonInput, CreateTeamInput } from "../shared/contracts";
+import type {
+  AppApi,
+  CreatePokemonInput,
+  CreateTeamInput,
+  UpsertBuildInput,
+} from "../shared/contracts";
 
 const api: AppApi = {
   dashboard: {
@@ -15,6 +20,11 @@ const api: AppApi = {
   },
   builds: {
     list: () => ipcRenderer.invoke("builds:list"),
+    get: (id: number) => ipcRenderer.invoke("builds:get", id),
+    create: (input: UpsertBuildInput) => ipcRenderer.invoke("builds:create", input),
+    update: (id: number, input: UpsertBuildInput) => ipcRenderer.invoke("builds:update", id, input),
+    remove: (id: number) => ipcRenderer.invoke("builds:remove", id),
+    duplicate: (id: number) => ipcRenderer.invoke("builds:duplicate", id),
   },
   teams: {
     list: () => ipcRenderer.invoke("teams:list"),
