@@ -7,14 +7,17 @@ import type {
   UpsertBuildInput,
 } from "../shared/contracts";
 import { statCodes } from "../shared/contracts";
+import { getOfficialArtworkUrl } from "./catalog";
 import { getDatabase } from "./database";
 
 function mapSummary(row: Record<string, unknown>): BuildSummary {
+  const nationalDexNumber = row.national_dex_number == null ? null : Number(row.national_dex_number);
   return {
     id: Number(row.id),
     ownedPokemonId: Number(row.owned_pokemon_id),
     speciesName: String(row.species_name),
     pokemonName: String(row.pokemon_name),
+    imageUrl: getOfficialArtworkUrl(nationalDexNumber),
     buildName: String(row.build_name),
     format: row.battle_format as BuildSummary["format"],
     ability: row.ability == null ? null : String(row.ability),
@@ -29,6 +32,7 @@ function getSummaryRow(id: number): Record<string, unknown> | undefined {
       b.id,
       b.owned_pokemon_id,
       s.name AS species_name,
+      s.national_dex_number,
       COALESCE(op.nickname, s.name) AS pokemon_name,
       b.name AS build_name,
       b.battle_format,
@@ -49,6 +53,7 @@ export function listBuilds(): BuildSummary[] {
       b.id,
       b.owned_pokemon_id,
       s.name AS species_name,
+      s.national_dex_number,
       COALESCE(op.nickname, s.name) AS pokemon_name,
       b.name AS build_name,
       b.battle_format,
@@ -140,13 +145,7 @@ function replaceChildren(buildId: number, input: UpsertBuildInput): void {
     VALUES (?, ?, ?, ?, ?)
   `);
   for (const stat of input.stats) {
-    insertStat.run(
-      buildId,
-      stat.statCode,
-      stat.finalValue ?? null,
-      stat.trainingPoints ?? null,
-      stat.modifier,
-    );
+    insertStat.run(buildId, stat.statCode, stat.finalValue ?? null, stat.trainingPoints ?? null, stat.modifier);
   }
 }
 
@@ -184,14 +183,8 @@ export function updateBuild(id: number, input: UpsertBuildInput): BuildDetail {
   const transaction = db.transaction(() => {
     const result = db.prepare(`
       UPDATE builds
-      SET owned_pokemon_id = ?,
-          name = ?,
-          battle_format = ?,
-          ability = ?,
-          stat_alignment = ?,
-          held_item = ?,
-          notes = ?,
-          updated_at = CURRENT_TIMESTAMP
+      SET owned_pokemon_id = ?, name = ?, battle_format = ?, ability = ?, stat_alignment = ?,
+          held_item = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
       input.ownedPokemonId,
