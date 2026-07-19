@@ -8,6 +8,7 @@ import type {
 } from "../shared/contracts";
 import { statCodes } from "../shared/contracts";
 import { getOfficialArtworkUrl } from "./catalog";
+import { validateBuildCompatibility } from "./compatibility";
 import { getDatabase } from "./database";
 
 function mapSummary(row: Record<string, unknown>): BuildSummary {
@@ -28,18 +29,9 @@ function mapSummary(row: Record<string, unknown>): BuildSummary {
 
 function getSummaryRow(id: number): Record<string, unknown> | undefined {
   return getDatabase().prepare(`
-    SELECT
-      b.id,
-      b.owned_pokemon_id,
-      s.name AS species_name,
-      s.national_dex_number,
-      COALESCE(op.nickname, s.name) AS pokemon_name,
-      b.name AS build_name,
-      b.battle_format,
-      b.ability,
-      b.stat_alignment,
-      b.held_item,
-      b.notes
+    SELECT b.id, b.owned_pokemon_id, s.name AS species_name, s.national_dex_number,
+           COALESCE(op.nickname, s.name) AS pokemon_name, b.name AS build_name,
+           b.battle_format, b.ability, b.stat_alignment, b.held_item, b.notes
     FROM builds b
     JOIN owned_pokemon op ON op.id = b.owned_pokemon_id
     JOIN species s ON s.id = op.species_id
@@ -49,43 +41,22 @@ function getSummaryRow(id: number): Record<string, unknown> | undefined {
 
 export function listBuilds(): BuildSummary[] {
   const rows = getDatabase().prepare(`
-    SELECT
-      b.id,
-      b.owned_pokemon_id,
-      s.name AS species_name,
-      s.national_dex_number,
-      COALESCE(op.nickname, s.name) AS pokemon_name,
-      b.name AS build_name,
-      b.battle_format,
-      b.ability,
-      b.stat_alignment,
-      b.held_item
+    SELECT b.id, b.owned_pokemon_id, s.name AS species_name, s.national_dex_number,
+           COALESCE(op.nickname, s.name) AS pokemon_name, b.name AS build_name,
+           b.battle_format, b.ability, b.stat_alignment, b.held_item
     FROM builds b
     JOIN owned_pokemon op ON op.id = b.owned_pokemon_id
     JOIN species s ON s.id = op.species_id
     ORDER BY pokemon_name COLLATE NOCASE, b.name COLLATE NOCASE
   `).all() as Array<Record<string, unknown>>;
-
   return rows.map(mapSummary);
 }
 
 export function getBuild(id: number): BuildDetail {
   const row = getSummaryRow(id);
   if (!row) throw new Error("Build não encontrada.");
-
-  const moves = getDatabase().prepare(`
-    SELECT slot, name, type, pp
-    FROM build_moves
-    WHERE build_id = ?
-    ORDER BY slot
-  `).all(id) as Array<Record<string, unknown>>;
-
-  const stats = getDatabase().prepare(`
-    SELECT stat_code, final_value, training_points, modifier
-    FROM build_stats
-    WHERE build_id = ?
-  `).all(id) as Array<Record<string, unknown>>;
-
+  const moves = getDatabase().prepare(`SELECT slot, name, type, pp FROM build_moves WHERE build_id = ? ORDER BY slot`).all(id) as Array<Record<string, unknown>>;
+  const stats = getDatabase().prepare(`SELECT stat_code, final_value, training_points, modifier FROM build_stats WHERE build_id = ?`).all(id) as Array<Record<string, unknown>>;
   const statsByCode = new Map<StatCode, BuildStat>();
   for (const stat of stats) {
     const statCode = String(stat.stat_code) as StatCode;
@@ -97,7 +68,6 @@ export function getBuild(id: number): BuildDetail {
       modifier: stat.modifier as BuildStat["modifier"],
     });
   }
-
   return {
     ...mapSummary(row),
     notes: row.notes == null ? null : String(row.notes),
@@ -119,88 +89,59 @@ export function getBuild(id: number): BuildDetail {
 function validateInput(input: UpsertBuildInput): void {
   if (!input.name.trim()) throw new Error("Informe o nome da build.");
   if (input.moves.length > 4) throw new Error("Uma build pode ter no máximo quatro golpes.");
-  if (new Set(input.moves.map((move) => move.slot)).size !== input.moves.length) {
-    throw new Error("Existem slots de golpe repetidos.");
-  }
-  if (new Set(input.stats.map((stat) => stat.statCode)).size !== input.stats.length) {
-    throw new Error("Existem atributos repetidos.");
-  }
+  if (new Set(input.moves.map((move) => move.slot)).size !== input.moves.length) throw new Error("Existem slots de golpe repetidos.");
+  if (new Set(input.moves.map((move) => move.name.trim().toLowerCase())).size !== input.moves.length) throw new Error("A mesma build não pode repetir um golpe.");
+  if (new Set(input.stats.map((stat) => stat.statCode)).size !== input.stats.length) throw new Error("Existem atributos repetidos.");
+  const totalTraining = input.stats.reduce((total, stat) => total + (stat.trainingPoints ?? 0), 0);
+  if (totalTraining > 510) throw new Error("O treinamento total da build não pode ultrapassar 510 pontos.");
+  if (input.stats.some((stat) => (stat.trainingPoints ?? 0) > 252)) throw new Error("Um atributo não pode receber mais de 252 pontos de treinamento.");
+  validateBuildCompatibility(input.ownedPokemonId, input.ability, input.moves);
 }
 
 function replaceChildren(buildId: number, input: UpsertBuildInput): void {
   const db = getDatabase();
   db.prepare("DELETE FROM build_moves WHERE build_id = ?").run(buildId);
   db.prepare("DELETE FROM build_stats WHERE build_id = ?").run(buildId);
-
-  const insertMove = db.prepare(`
-    INSERT INTO build_moves (build_id, slot, name, type, pp)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  for (const move of input.moves) {
-    insertMove.run(buildId, move.slot, move.name.trim(), move.type?.trim() || null, move.pp ?? null);
-  }
-
-  const insertStat = db.prepare(`
-    INSERT INTO build_stats (build_id, stat_code, final_value, training_points, modifier)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  for (const stat of input.stats) {
-    insertStat.run(buildId, stat.statCode, stat.finalValue ?? null, stat.trainingPoints ?? null, stat.modifier);
-  }
+  const insertMove = db.prepare(`INSERT INTO build_moves (build_id, slot, name, type, pp) VALUES (?, ?, ?, ?, ?)`);
+  for (const move of input.moves) insertMove.run(buildId, move.slot, move.name.trim(), move.type?.trim() || null, move.pp ?? null);
+  const insertStat = db.prepare(`INSERT INTO build_stats (build_id, stat_code, final_value, training_points, modifier) VALUES (?, ?, ?, ?, ?)`);
+  for (const stat of input.stats) insertStat.run(buildId, stat.statCode, stat.finalValue ?? null, stat.trainingPoints ?? null, stat.modifier);
 }
 
 export function createBuild(input: UpsertBuildInput): BuildDetail {
-  validateInput(input);
   const db = getDatabase();
-  const transaction = db.transaction(() => {
-    const owned = db.prepare("SELECT id FROM owned_pokemon WHERE id = ?").get(input.ownedPokemonId);
-    if (!owned) throw new Error("Pokémon não encontrado.");
-
+  const owned = db.prepare("SELECT id FROM owned_pokemon WHERE id = ?").get(input.ownedPokemonId);
+  if (!owned) throw new Error("Pokémon não encontrado.");
+  validateInput(input);
+  const id = db.transaction(() => {
     const result = db.prepare(`
-      INSERT INTO builds
-        (owned_pokemon_id, name, battle_format, ability, stat_alignment, held_item, notes)
+      INSERT INTO builds (owned_pokemon_id, name, battle_format, ability, stat_alignment, held_item, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      input.ownedPokemonId,
-      input.name.trim(),
-      input.format,
-      input.ability?.trim() || null,
-      input.statAlignment?.trim() || null,
-      input.heldItem?.trim() || null,
-      input.notes?.trim() || null,
-    );
-    const id = Number(result.lastInsertRowid);
-    replaceChildren(id, input);
-    return id;
-  });
-
-  return getBuild(transaction());
+    `).run(input.ownedPokemonId, input.name.trim(), input.format, input.ability?.trim() || null,
+      input.statAlignment?.trim() || null, input.heldItem?.trim() || null, input.notes?.trim() || null);
+    const buildId = Number(result.lastInsertRowid);
+    replaceChildren(buildId, input);
+    return buildId;
+  })();
+  return getBuild(id);
 }
 
 export function updateBuild(id: number, input: UpsertBuildInput): BuildDetail {
-  validateInput(input);
   const db = getDatabase();
-  const transaction = db.transaction(() => {
+  const owned = db.prepare("SELECT id FROM owned_pokemon WHERE id = ?").get(input.ownedPokemonId);
+  if (!owned) throw new Error("Pokémon não encontrado.");
+  validateInput(input);
+  db.transaction(() => {
     const result = db.prepare(`
       UPDATE builds
       SET owned_pokemon_id = ?, name = ?, battle_format = ?, ability = ?, stat_alignment = ?,
           held_item = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(
-      input.ownedPokemonId,
-      input.name.trim(),
-      input.format,
-      input.ability?.trim() || null,
-      input.statAlignment?.trim() || null,
-      input.heldItem?.trim() || null,
-      input.notes?.trim() || null,
-      id,
-    );
+    `).run(input.ownedPokemonId, input.name.trim(), input.format, input.ability?.trim() || null,
+      input.statAlignment?.trim() || null, input.heldItem?.trim() || null, input.notes?.trim() || null, id);
     if (result.changes === 0) throw new Error("Build não encontrada.");
     replaceChildren(id, input);
-  });
-
-  transaction();
+  })();
   return getBuild(id);
 }
 
