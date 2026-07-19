@@ -93,6 +93,17 @@ export type PokemonSummary = {
   createdAt: string;
 };
 
+export type PokedexEntry = {
+  id: number;
+  speciesName: string;
+  nationalDexNumber: number | null;
+  formName: string;
+  types: string[];
+  ownedCount: number;
+  buildCount: number;
+  firstSeenAt: string;
+};
+
 export type BuildSummary = {
   id: number;
   ownedPokemonId: number;
@@ -149,6 +160,9 @@ export type AppApi = {
     list(): Promise<PokemonSummary[]>;
     create(input: CreatePokemonInput): Promise<PokemonSummary>;
     remove(id: number): Promise<void>;
+  };
+  pokedex: {
+    list(): Promise<PokedexEntry[]>;
   };
   builds: {
     list(): Promise<BuildSummary[]>;

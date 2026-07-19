@@ -14,6 +14,7 @@ import {
   removePokemon,
   validateImport,
 } from "./database";
+import { listPokedex } from "./pokedex";
 
 const createPokemonSchema = z.object({
   speciesName: z.string().trim().min(1),
@@ -44,6 +45,7 @@ function registerIpc(): void {
     const parsedId = z.number().int().positive().parse(id);
     removePokemon(parsedId);
   });
+  ipcMain.handle("pokedex:list", () => listPokedex());
   ipcMain.handle("builds:list", () => listBuilds());
   ipcMain.handle("teams:list", () => listTeams());
   ipcMain.handle("teams:create", (_event, input: unknown) => createTeam(createTeamSchema.parse(input)));
@@ -80,6 +82,10 @@ function createWindow(): void {
     void window.loadFile(join(__dirname, "../renderer/index.html"));
   }
 }
+
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch("disable-gpu");
+app.commandLine.appendSwitch("disable-gpu-compositing");
 
 app.whenReady().then(() => {
   getDatabase();

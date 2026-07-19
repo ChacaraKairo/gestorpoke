@@ -10,6 +10,9 @@ const api: AppApi = {
     create: (input: CreatePokemonInput) => ipcRenderer.invoke("pokemon:create", input),
     remove: (id: number) => ipcRenderer.invoke("pokemon:remove", id),
   },
+  pokedex: {
+    list: () => ipcRenderer.invoke("pokedex:list"),
+  },
   builds: {
     list: () => ipcRenderer.invoke("builds:list"),
   },

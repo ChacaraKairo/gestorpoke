@@ -2,11 +2,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type {
   CreatePokemonInput,
   DashboardSummary,
+  PokedexEntry,
   PokemonSummary,
   TeamSummary,
 } from "../../shared/contracts";
 
-type Page = "home" | "pokemon" | "teams" | "import" | "settings";
+type Page = "home" | "pokedex" | "pokemon" | "teams" | "import" | "settings";
 
 const emptyDashboard: DashboardSummary = {
   ownedPokemon: 0,
@@ -45,6 +46,80 @@ function PokemonCard({ pokemon, onRemove }: { pokemon: PokemonSummary; onRemove?
         </button>
       ) : null}
     </article>
+  );
+}
+
+function PokedexCard({ entry }: { entry: PokedexEntry }) {
+  const dexNumber = entry.nationalDexNumber ? `#${String(entry.nationalDexNumber).padStart(4, "0")}` : "#????";
+
+  return (
+    <article className="pokedex-card" tabIndex={0}>
+      <div className="pokedex-number">{dexNumber}</div>
+      <div>
+        <span className="eyebrow">{entry.formName === "default" ? "Espécie" : entry.formName}</span>
+        <h3>{entry.speciesName}</h3>
+        <div className="badge-row">
+          {entry.types.length > 0 ? entry.types.map((type) => <span className="type-badge" key={type}>{type}</span>) : <span className="type-badge muted">tipo não informado</span>}
+        </div>
+      </div>
+      <dl className="pokedex-stats">
+        <div><dt>Capturados</dt><dd>{entry.ownedCount}</dd></div>
+        <div><dt>Builds</dt><dd>{entry.buildCount}</dd></div>
+      </dl>
+    </article>
+  );
+}
+
+function PokedexPage({ entries }: { entries: PokedexEntry[] }) {
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  const availableTypes = useMemo(() => {
+    const types = new Set<string>();
+    entries.forEach((entry) => entry.types.forEach((type) => types.add(type)));
+    return Array.from(types).sort((first, second) => first.localeCompare(second, "pt-BR"));
+  }, [entries]);
+
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("pt-BR");
+    return entries.filter((entry) => {
+      const matchesQuery = !normalized || [
+        entry.speciesName,
+        entry.formName,
+        entry.nationalDexNumber ? String(entry.nationalDexNumber) : "",
+        entry.types.join(" "),
+      ].some((value) => value.toLocaleLowerCase("pt-BR").includes(normalized));
+      const matchesType = typeFilter === "all" || entry.types.includes(typeFilter);
+      return matchesQuery && matchesType;
+    });
+  }, [entries, query, typeFilter]);
+
+  const totalOwned = useMemo(() => entries.reduce((sum, entry) => sum + entry.ownedCount, 0), [entries]);
+  const catalogTypes = availableTypes.length || 0;
+
+  return (
+    <section className="page-stack">
+      <header className="page-header">
+        <div><span className="eyebrow">Catálogo local</span><h1>Pokédex</h1><p>Espécies descobertas por cadastro manual ou importação, separadas dos exemplares no seu box.</p></div>
+      </header>
+
+      <div className="pokedex-overview">
+        <article><strong>{entries.length}</strong><span>Espécies</span></article>
+        <article><strong>{totalOwned}</strong><span>Exemplares no box</span></article>
+        <article><strong>{catalogTypes}</strong><span>Tipos catalogados</span></article>
+      </div>
+
+      <div className="toolbar">
+        <input className="search-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar por nome, número, forma ou tipo..." />
+        <select className="filter-select" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filtrar por tipo">
+          <option value="all">Todos os tipos</option>
+          {availableTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+        </select>
+        <span>{filtered.length} registro(s)</span>
+      </div>
+
+      {filtered.length === 0 ? <div className="empty-state">A Pokédex ainda não tem espécies com esse filtro. Cadastre um Pokémon ou importe um JSON para alimentar o catálogo.</div> : <div className="pokedex-grid">{filtered.map((entry) => <PokedexCard key={entry.id} entry={entry} />)}</div>}
+    </section>
   );
 }
 
@@ -295,18 +370,21 @@ function SettingsPage() {
 export function App() {
   const [page, setPage] = useState<Page>("home");
   const [summary, setSummary] = useState<DashboardSummary>(emptyDashboard);
+  const [pokedex, setPokedex] = useState<PokedexEntry[]>([]);
   const [pokemon, setPokemon] = useState<PokemonSummary[]>([]);
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [fatalError, setFatalError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [dashboardData, pokemonData, teamData] = await Promise.all([
+      const [dashboardData, pokedexData, pokemonData, teamData] = await Promise.all([
         window.gestorPoke.dashboard.getSummary(),
+        window.gestorPoke.pokedex.list(),
         window.gestorPoke.pokemon.list(),
         window.gestorPoke.teams.list(),
       ]);
       setSummary(dashboardData);
+      setPokedex(pokedexData);
       setPokemon(pokemonData);
       setTeams(teamData);
       setFatalError(null);
@@ -319,6 +397,7 @@ export function App() {
 
   const navigation: Array<{ id: Page; label: string; icon: string }> = [
     { id: "home", label: "Início", icon: "◆" },
+    { id: "pokedex", label: "Pokédex", icon: "◎" },
     { id: "pokemon", label: "Meus Pokémon", icon: "◉" },
     { id: "teams", label: "Equipes", icon: "⬡" },
     { id: "import", label: "Importar", icon: "⇩" },
@@ -335,6 +414,7 @@ export function App() {
       <main className="main-content">
         {fatalError ? <div className="error-message">Falha ao carregar dados: {fatalError}</div> : null}
         {page === "home" ? <HomePage summary={summary} goTo={setPage} /> : null}
+        {page === "pokedex" ? <PokedexPage entries={pokedex} /> : null}
         {page === "pokemon" ? <PokemonPage pokemon={pokemon} refresh={refresh} /> : null}
         {page === "teams" ? <TeamsPage teams={teams} refresh={refresh} /> : null}
         {page === "import" ? <ImportPage onImported={refresh} /> : null}

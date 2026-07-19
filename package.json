@@ -4,7 +4,6 @@
   "private": true,
   "description": "Assistente desktop para organizar Pokémon, builds, equipes e estratégias.",
   "main": "out/main/index.js",
-  "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
@@ -31,7 +30,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "5.2.0",
-    "electron": "latest",
+    "electron": "33.4.11",
     "electron-builder": "latest",
     "electron-vite": "5.0.0",
     "eslint": "latest",
