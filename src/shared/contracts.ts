@@ -101,9 +101,21 @@ export type PokedexEntry = {
   nationalDexNumber: number | null;
   formName: string;
   types: string[];
+  imageUrl: string | null;
   ownedCount: number;
   buildCount: number;
   firstSeenAt: string;
+};
+
+export type CatalogStatus = {
+  speciesCount: number;
+  synchronizedAt: string | null;
+  source: string;
+};
+
+export type CatalogSyncResult = CatalogStatus & {
+  imported: number;
+  updated: number;
 };
 
 export type BuildMove = {
@@ -195,8 +207,10 @@ export type AppApi = {
     create(input: CreatePokemonInput): Promise<PokemonSummary>;
     remove(id: number): Promise<void>;
   };
-  pokedex?: {
+  pokedex: {
     list(): Promise<PokedexEntry[]>;
+    status(): Promise<CatalogStatus>;
+    synchronize(): Promise<CatalogSyncResult>;
   };
   builds: {
     list(): Promise<BuildSummary[]>;
