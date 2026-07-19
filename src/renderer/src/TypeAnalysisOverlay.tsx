@@ -33,8 +33,10 @@ export function TypeAnalysisOverlay() {
 
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    Promise.all([window.gestorPoke.teams.list(), window.gestorPoke.pokemon.list()])
+    void Promise.resolve().then(() => {
+      setLoading(true);
+      return Promise.all([window.gestorPoke.teams.list(), window.gestorPoke.pokemon.list()]);
+    })
       .then(([teamList, pokemonList]) => {
         setTeams(teamList);
         setPokemon(pokemonList);

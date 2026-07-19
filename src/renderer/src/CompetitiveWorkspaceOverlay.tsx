@@ -5,6 +5,7 @@ import type {
   BuildComparison,
   BuildSummary,
   ImportPreview,
+  JsonImportResult,
   TeamAnalysis,
   TeamDetail,
   TeamSummary,
@@ -13,7 +14,7 @@ import type {
 import "./competitive-workspace.css";
 
 function titleize(value: string): string {
-  return value.split("-").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
+  return value.split("-").map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : part).join(" ");
 }
 
 function errorMessage(error: unknown): string {
@@ -43,7 +44,7 @@ export function CompetitiveWorkspaceOverlay() {
     setStats(battleStats);
   }
 
-  useEffect(() => { if (open) void refresh(); }, [open]);
+  useEffect(() => { if (open) void Promise.resolve().then(refresh); }, [open]);
 
   return <>
     <button className="competitive-trigger" type="button" onClick={() => setOpen(true)}>★ Central competitiva</button>
@@ -165,8 +166,9 @@ function DataWorkspace({ busy, setBusy, setMessage }: { busy: boolean; setBusy: 
   const [json, setJson] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   async function operation(action: () => Promise<{ canceled: boolean; filePath: string | null }>, success: string) { setBusy(true); try { const result = await action(); setMessage(result.canceled ? "Operação cancelada." : `${success}: ${result.filePath}`); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } }
+  async function importJsonOperation(action: () => Promise<JsonImportResult>, success: string) { setBusy(true); try { const result = await action(); if (result.canceled) { setMessage("Operação cancelada."); return; } const summary = [result.importedBuilds ? `${result.importedBuilds} build(s) criada(s)` : null, result.updatedBuilds ? `${result.updatedBuilds} build(s) atualizada(s)` : null, result.importedTeams ? `${result.importedTeams} equipe(s) criada(s)` : null, result.updatedTeams ? `${result.updatedTeams} equipe(s) atualizada(s)` : null].filter(Boolean).join(", ") || "nenhum registro alterado"; setMessage(`${success}: ${summary}.`); } catch (error) { setMessage(errorMessage(error)); } finally { setBusy(false); } }
   async function review() { try { setPreview(await window.gestorPoke.imports.preview(json)); } catch (error) { setMessage(errorMessage(error)); } }
   async function importData() { try { const result = await window.gestorPoke.imports.execute(json); setMessage(`${result.importedPokemon} Pokémon e ${result.importedBuilds} builds importados.`); setPreview(null); setJson(""); } catch (error) { setMessage(errorMessage(error)); } }
-  return <div className="workspace-stack"><section className="workspace-panel"><h2>Backup e restauração</h2><div className="data-actions"><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.backup, "Backup criado")}>Criar backup</button><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.restore, "Backup restaurado")}>Restaurar backup</button><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.exportJson, "JSON exportado")}>Exportar JSON</button></div><p className="warning-text">A restauração cria uma cópia de segurança automática do banco atual antes de substituir os dados.</p></section>
+  return <div className="workspace-stack"><section className="workspace-panel"><h2>Backup e restauração</h2><div className="data-actions"><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.backup, "Backup criado")}>Criar backup</button><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.restore, "Backup restaurado")}>Restaurar backup</button><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.exportJson, "JSON exportado")}>Exportar JSON completo</button><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.exportBuilds, "Builds exportadas")}>Exportar builds</button><button disabled={busy} onClick={() => void importJsonOperation(window.gestorPoke.data.importBuilds, "Builds importadas")}>Importar builds</button><button disabled={busy} onClick={() => void operation(window.gestorPoke.data.exportTeams, "Equipes exportadas")}>Exportar equipes</button><button disabled={busy} onClick={() => void importJsonOperation(window.gestorPoke.data.importTeams, "Equipes importadas")}>Importar equipes</button></div><p className="warning-text">A restauração cria uma cópia de segurança automática do banco atual antes de substituir os dados.</p></section>
   <section className="workspace-panel"><h2>Importação com revisão</h2><input type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void file.text().then(setJson); }} /><textarea rows={10} value={json} onChange={(event) => { setJson(event.target.value); setPreview(null); }} placeholder="Cole ou carregue o JSON" /><button onClick={() => void review()} disabled={!json.trim()}>Revisar</button>{preview ? <div className="import-preview"><strong>{preview.valid ? `${preview.count} registro(s) válido(s)` : "Arquivo inválido"}</strong>{preview.errors.map((error) => <p className="error" key={error}>{error}</p>)}{preview.duplicates.map((duplicate) => <p className="warning" key={duplicate.index}>Possível duplicidade: {duplicate.speciesName}{duplicate.nickname ? ` (${duplicate.nickname})` : ""} — IDs existentes: {duplicate.existingPokemonIds.join(", ")}</p>)}<button className="primary-button" disabled={!preview.valid} onClick={() => void importData()}>Confirmar importação</button></div> : null}</section></div>;
 }

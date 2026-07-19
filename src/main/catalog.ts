@@ -78,7 +78,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 function getIdFromResourceUrl(url: string): number {
   const match = url.match(/\/(\d+)\/?$/);
-  if (!match) throw new Error(`Não foi possível identificar o recurso: ${url}`);
+  if (!match?.[1]) throw new Error(`Não foi possível identificar o recurso: ${url}`);
   return Number(match[1]);
 }
 
@@ -89,7 +89,9 @@ async function mapWithConcurrency<T, R>(values: T[], concurrency: number, mapper
     while (true) {
       const index = cursor++;
       if (index >= values.length) return;
-      results[index] = await mapper(values[index]);
+      const value = values[index];
+      if (value === undefined) return;
+      results[index] = await mapper(value);
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, () => worker()));
@@ -197,7 +199,7 @@ async function synchronizeNamedCatalog<T extends { id: number; name: string }>(
   const records = await mapWithConcurrency(list.results, CONCURRENCY, mapper);
   const existingIds = new Set((getDatabase().prepare(`SELECT id FROM ${table}`).all() as Array<{ id: number }>).map((row) => row.id));
   let imported = 0; let updated = 0;
-  getDatabase().transaction(() => { for (const record of records) { existingIds.has(record.id) ? updated++ : imported++; upsert(record); } })();
+  getDatabase().transaction(() => { for (const record of records) { if (existingIds.has(record.id)) updated++; else imported++; upsert(record); } })();
   const synchronizedAt = new Date().toISOString();
   setMetadata(`${endpoint}s_synchronized_at`, synchronizedAt); setMetadata("catalog_synchronized_at", synchronizedAt);
   return { ...getCatalogStatus(), imported, updated, synchronizedAt };

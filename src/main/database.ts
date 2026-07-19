@@ -305,7 +305,7 @@ export function getDashboardSummary(): DashboardSummary {
 
 export function listTeams(): TeamSummary[] {
   const rows = getDatabase().prepare(`
-    SELECT t.id, t.name, t.battle_format, t.description, t.created_at,
+    SELECT t.id, t.name, t.battle_format, COALESCE(t.regulation_key, 'open') AS regulation_key, t.description, t.created_at,
            COUNT(tm.id) AS member_count
     FROM teams t
     LEFT JOIN team_members tm ON tm.team_id = t.id
@@ -317,6 +317,7 @@ export function listTeams(): TeamSummary[] {
     id: Number(row.id),
     name: String(row.name),
     format: row.battle_format as TeamSummary["format"],
+    regulationKey: row.regulation_key as TeamSummary["regulationKey"],
     description: row.description == null ? null : String(row.description),
     memberCount: Number(row.member_count),
     createdAt: String(row.created_at),

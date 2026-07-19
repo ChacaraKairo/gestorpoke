@@ -49,6 +49,7 @@ export type ImportDuplicatePolicy = "create" | "ignore" | "replace" | "merge";
 export type ImportResolution = { index: number; policy: ImportDuplicatePolicy; targetPokemonId?: number | null };
 export type ImportPreview = { valid: boolean; count: number; errors: string[]; duplicates: Array<{ index: number; speciesName: string; nickname: string | null; existingPokemonIds: number[] }> };
 export type FileOperationResult = { canceled: boolean; filePath: string | null; bytes: number; createdAt: string | null };
+export type JsonImportResult = FileOperationResult & { importedBuilds: number; updatedBuilds: number; importedTeams: number; updatedTeams: number; warnings: string[] };
 export type TeamValidationSeverity = "error" | "warning" | "success";
 export type TeamValidationIssue = { code: string; severity: TeamValidationSeverity; message: string };
 export type TeamValidationResult = { teamId: number; valid: boolean; issues: TeamValidationIssue[] };
@@ -73,5 +74,5 @@ export type AppApi = {
   teams: { list(): Promise<TeamSummary[]>; get(id: number): Promise<TeamDetail>; create(input: UpsertTeamInput): Promise<TeamDetail>; update(id: number, input: UpsertTeamInput): Promise<TeamDetail>; remove(id: number): Promise<void>; validate(id: number): Promise<TeamValidationResult>; analyze(id: number): Promise<TeamAnalysis> };
   battles: { list(): Promise<BattleRecord[]>; create(input: CreateBattleInput): Promise<BattleRecord>; remove(id: number): Promise<void>; stats(): Promise<BattleStats> };
   imports: { validate(jsonText: string): Promise<{ valid: boolean; errors: string[]; count: number }>; preview(jsonText: string): Promise<ImportPreview>; execute(jsonText: string): Promise<ImportResult>; executeResolved(jsonText: string, resolutions: ImportResolution[]): Promise<ImportResult> };
-  data: { backup(): Promise<FileOperationResult>; restore(): Promise<FileOperationResult>; exportJson(): Promise<FileOperationResult> };
+  data: { backup(): Promise<FileOperationResult>; restore(): Promise<FileOperationResult>; exportJson(): Promise<FileOperationResult>; exportBuilds(): Promise<FileOperationResult>; importBuilds(): Promise<JsonImportResult>; exportTeams(): Promise<FileOperationResult>; importTeams(): Promise<JsonImportResult> };
 };

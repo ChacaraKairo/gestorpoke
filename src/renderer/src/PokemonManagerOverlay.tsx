@@ -7,7 +7,7 @@ function artworkUrl(number: number | null): string | null {
 }
 
 function titleize(value: string): string {
-  return value.split("-").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
+  return value.split("-").map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : part).join(" ");
 }
 
 function emptyForm(detail: OwnedPokemonDetail): UpdatePokemonInput {

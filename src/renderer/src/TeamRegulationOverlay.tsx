@@ -26,7 +26,7 @@ export function TeamRegulationOverlay() {
 
   useEffect(() => {
     if (!open) return;
-    void refreshTeams();
+    void Promise.resolve().then(refreshTeams);
   }, [open]);
 
   async function selectTeam(id: number): Promise<void> {

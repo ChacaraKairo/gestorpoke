@@ -4,59 +4,50 @@ Assistente desktop local para organizar Pokémon, builds, equipes e estratégias
 
 > Projeto não oficial, sem vínculo com Nintendo, Game Freak, The Pokémon Company ou seus parceiros. Pokémon e marcas relacionadas pertencem aos respectivos titulares.
 
-## Estado atual
+## Objetivo
 
-A primeira versão funcional já possui:
+O GestorPoke é um aplicativo Electron + React + TypeScript com SQLite local para:
 
-- aplicação desktop com Electron, React e TypeScript;
-- banco SQLite criado automaticamente na pasta de dados do usuário;
-- IPC seguro entre interface e processo principal;
-- dashboard;
-- cadastro, listagem, pesquisa e exclusão de Pokémon;
-- criação automática da primeira build;
-- criação e listagem inicial de equipes individuais ou em dupla;
-- consulta interna de builds para evolução do editor de equipes;
-- importação em lote de JSON;
-- validação Zod antes da gravação;
-- transação SQLite para impedir importação parcial;
-- interface própria inspirada em menus de jogos;
-- testes iniciais do contrato JSON.
-
-Ainda serão implementados no decorrer do MVP: editor completo de builds, seleção dos seis integrantes, Pokédex importada, analisador de tipos, histórico, backup e empacotamento validado em cada sistema operacional.
+- consultar espécies, formas, tipos, golpes, habilidades e itens;
+- cadastrar Pokémon possuídos e suas fichas;
+- manter múltiplas builds por exemplar e marcar uma build principal;
+- montar equipes individuais ou em dupla;
+- validar regras competitivas e regulamentação Pokémon Champions;
+- analisar tipos, cobertura ofensiva e sinergias de duplas;
+- importar/exportar dados em JSON com revisão de duplicidades;
+- registrar histórico de batalhas e estatísticas;
+- criar backup e restaurar o banco SQLite.
 
 ## Requisitos
 
-- Node.js 22.12 ou superior;
+- Node.js 22.12.0 ou superior;
 - npm;
-- Linux ou Windows para os primeiros pacotes desktop.
+- Linux para AppImage local;
+- Windows para geração/teste real do instalador NSIS;
+- em Linux, ferramentas nativas como `python3`, `make`, `g++`, `libsqlite3-dev` e `libfuse2` quando for executar AppImage diretamente.
 
-## Executar em desenvolvimento
+## Instalação
 
 ```bash
-npm install
+npm ci
+```
+
+O `postinstall` executa `electron-builder install-app-deps` para preparar módulos nativos usados pelo Electron. O script de testes reconstrói `better-sqlite3` para o Node antes do Vitest, porque os testes rodam fora do runtime Electron.
+
+## Desenvolvimento
+
+```bash
 npm run dev
 ```
 
-## Verificações
+## Comandos
 
 ```bash
 npm run typecheck
 npm run lint
 npm test
 npm run build
-```
-
-## Gerar instalador
-
-Linux:
-
-```bash
 npm run dist:linux
-```
-
-Windows:
-
-```bash
 npm run dist:win
 ```
 
@@ -64,46 +55,79 @@ npm run dist:win
 
 ```text
 src/
-├── main/       # Electron, SQLite, migrations, repositórios e IPC
-├── preload/    # ponte segura entre renderer e processo principal
+├── main/       # Electron, SQLite, migrations, repositórios, serviços e IPC
+├── preload/    # ponte segura contextBridge/ipcRenderer
 ├── renderer/   # interface React
-└── shared/     # contratos TypeScript e schemas Zod
+└── shared/     # contratos, schemas Zod e regras puras testáveis
+
+src/renderer/src/
+├── app/
+│   ├── pages/
+│   ├── ui.tsx
+│   └── modular-pages.css
+├── AppV2.tsx
+├── overlays/
+└── assets/
 ```
 
-## Objetivo
+`AppV2.tsx` concentra navegação, carregamento global e estado compartilhado. As páginas principais ficam em `src/renderer/src/app/pages`.
 
-O GestorPoke será voltado para:
+## Banco De Dados
 
-- consultar um catálogo de espécies, formas, tipos, golpes e habilidades;
-- cadastrar os Pokémon possuídos pelo usuário;
-- manter várias builds para o mesmo Pokémon;
-- editar Stat Alignment, habilidade, movimentos e treinamento;
-- montar equipes de até seis integrantes;
-- preparar seleções para batalhas individuais e em dupla;
-- analisar cobertura, fraquezas, resistências e sinergias;
-- importar um ou vários Pokémon por JSON produzido a partir de capturas de tela;
-- registrar batalhas e usar os resultados para aprimorar equipes.
+Os dados pessoais ficam em SQLite no diretório de dados do aplicativo, dentro de `data/gestorpoke.sqlite`. O caminho é calculado via `app.getPath("userData")`, então o banco fica fora da pasta de instalação e tende a ser preservado em atualizações.
 
-## Princípios
+O processo principal habilita `PRAGMA foreign_keys = ON`, usa WAL e aplica migrations versionadas em `schema_migrations`. Testes de integração usam diretórios temporários e não devem acessar o banco real do usuário.
 
-1. **Dados de referência e dados pessoais são separados.** Uma espécie da Pokédex não é o mesmo que um exemplar possuído.
-2. **A equipe referencia builds.** Cada integrante usa uma configuração competitiva específica.
-3. **As regras são versionadas.** Regulamentações, disponibilidade e limites não são codificados como constantes permanentes.
-4. **Toda importação passa por validação e revisão.** Dados extraídos por IA nunca são considerados confiáveis sem validação.
-5. **A interface tem identidade própria.** Ela pode lembrar menus de jogos, mas não copia telas, marcas ou recursos oficiais.
-6. **O sistema funciona localmente.** O SQLite é a fonte principal dos dados pessoais.
+## Backup E Restauração
 
-## Tecnologias
+Backup usa a API `better-sqlite3#backup` e grava um arquivo `.sqlite` escolhido pelo usuário. A restauração valida o arquivo SQLite com `integrity_check`, verifica tabelas essenciais, cria backup automático do banco atual, fecha a conexão, substitui o banco, reabre e executa migrations.
 
-- Electron
-- React
-- TypeScript
-- electron-vite e Vite
-- SQLite e better-sqlite3
-- Zod
-- Vitest
+## Importação JSON
 
-## Documentação
+A importação espera `schemaVersion: 1` e `game: "pokemon-champions"`. O fluxo disponível valida schema, mostra prévia de duplicidades e permite políticas por registro:
+
+- `create`: cria novo exemplar;
+- `ignore`: ignora o registro;
+- `merge`: adiciona build ao Pokémon existente;
+- `replace`: substitui o registro existente de forma controlada.
+
+As gravações são transacionais para evitar banco parcialmente alterado.
+
+## Cache De Imagens
+
+O cache aceita apenas URLs HTTPS em hosts permitidos, usa hash estável da URL, valida tipo de conteúdo, limita tamanho e evita baixar novamente arquivos já armazenados. Hoje o renderer recebe Data URLs cacheadas; uma evolução possível é migrar para protocolo local autorizado se o uso de memória crescer.
+
+## Empacotamento
+
+Linux:
+
+```bash
+npm run dist:linux
+```
+
+Gera `dist/GestorPoke-0.1.0.AppImage`.
+
+Windows:
+
+```bash
+npm run dist:win
+```
+
+Gera instalador NSIS em `dist/*.exe` quando executado em runner ou máquina Windows.
+
+## CI
+
+`.github/workflows/ci.yml` executa:
+
+- `npm ci`;
+- `npm run typecheck`;
+- `npm run lint`;
+- `npm test`;
+- `npm run build`.
+
+`.github/workflows/package.yml` possui jobs separados para Linux AppImage e Windows NSIS, com validação antes do empacotamento e upload de artefatos.
+
+## Documentação Técnica
 
 | Documento | Conteúdo |
 | --- | --- |
@@ -113,7 +137,7 @@ O GestorPoke será voltado para:
 | [Design e experiência](docs/04-design-system.md) | Direção visual, componentes e navegação |
 | [Arquitetura](docs/05-arquitetura.md) | Camadas, módulos e comunicação Electron |
 
-## Modelo JSON mínimo
+## Modelo JSON Mínimo
 
 ```json
 {
@@ -143,6 +167,8 @@ O GestorPoke será voltado para:
 }
 ```
 
-## Observação de validação
+## Limitações Conhecidas
 
-O código foi escrito no repositório, mas o ambiente desta sessão não conseguiu resolver o domínio do GitHub para clonar e executar `npm install`. Portanto, os comandos de instalação, typecheck e build ainda precisam ser executados localmente ou pelo CI antes de considerar o pacote validado.
+- O teste local do AppImage pode exigir `libfuse.so.2`; sem FUSE, use `--appimage-extract` para validação básica.
+- O resultado real do workflow Windows precisa ser confirmado no GitHub Actions ou em uma máquina Windows. O ambiente local desta sessão não possui `gh`.
+- `npm audit` reporta uma vulnerabilidade alta nas dependências atuais; avaliar correção separadamente para evitar upgrade quebrando Electron/native modules.

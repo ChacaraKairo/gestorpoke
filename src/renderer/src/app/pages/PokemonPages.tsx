@@ -3,6 +3,7 @@ import type {
   BuildMove,
   BuildStat,
   BuildSummary,
+  CompatibleMove,
   CreatePokemonInput,
   MoveCatalogEntry,
   PokedexEntry,
@@ -91,16 +92,19 @@ export function BuildsPage({ pokemon, builds, moves, initialPokemonId, onRefresh
   const [syncingCompatibility, setSyncingCompatibility] = useState(false);
   const [showAllMoves, setShowAllMoves] = useState(false);
 
-  useEffect(() => { if (initialPokemonId) { setPokemonFilter(initialPokemonId); setForm(emptyBuild(initialPokemonId)); } }, [initialPokemonId]);
+  useEffect(() => { if (initialPokemonId) window.queueMicrotask(() => { setPokemonFilter(initialPokemonId); setForm(emptyBuild(initialPokemonId)); }); }, [initialPokemonId]);
   useEffect(() => {
-    if (!form.ownedPokemonId) { setCompatibility(null); return; }
+    if (!form.ownedPokemonId) { window.queueMicrotask(() => setCompatibility(null)); return; }
     void window.gestorPoke.compatibility.get(form.ownedPokemonId).then(setCompatibility).catch(() => setCompatibility(null));
   }, [form.ownedPokemonId]);
 
   const visibleBuilds = builds.filter((build) => !pokemonFilter || build.ownedPokemonId === pokemonFilter);
   const pokemonOptions = pokemon.map((item) => ({ id: item.id, label: item.nickname || titleize(item.speciesName), subtitle: `#${String(item.nationalDexNumber ?? 0).padStart(4, "0")} · ${titleize(item.formName)}`, imageUrl: item.imageUrl ?? artworkUrl(item.nationalDexNumber) }));
-  const availableMoves = compatibility?.synchronizedAt && !showAllMoves ? compatibility.moves : moves.filter((move) => move.availability !== "unavailable");
-  const moveOptions = availableMoves.map((move) => ({ id: move.id, label: titleize(move.name), subtitle: `${titleize(move.type ?? "sem tipo")} · ${titleize(move.category ?? "")} ${"methods" in move && move.methods.length ? `· ${move.methods.map(titleize).join(", ")}` : ""}` }));
+  const availableMoves: Array<MoveCatalogEntry | CompatibleMove> = compatibility?.synchronizedAt && !showAllMoves ? compatibility.moves : moves.filter((move) => move.availability !== "unavailable");
+  const moveOptions = availableMoves.map((move) => {
+    const methods = "methods" in move ? move.methods : [];
+    return { id: move.id, label: titleize(move.name), subtitle: `${titleize(move.type ?? "sem tipo")} · ${titleize(move.category ?? "")} ${methods.length ? `· ${methods.map(titleize).join(", ")}` : ""}` };
+  });
 
   async function edit(id: number) {
     const detail = await window.gestorPoke.builds.get(id);

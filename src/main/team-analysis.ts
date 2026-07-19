@@ -14,7 +14,7 @@ type MoveRow = {
 };
 
 function titleize(value: string): string {
-  return value.split("-").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
+  return value.split("-").map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : part).join(" ");
 }
 
 export function analyzeTeam(id: number): TeamAnalysis {

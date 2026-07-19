@@ -1,0 +1,73 @@
+.side-tools {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.side-tools::before {
+  content: "Ferramentas";
+  display: block;
+  margin: 0 4px 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.side-tools .type-analysis-trigger,
+.side-tools .team-regulation-trigger,
+.side-tools .compatibility-trigger,
+.side-tools .operations-trigger,
+.side-tools .pokemon-manager-trigger,
+.side-tools .competitive-trigger,
+.side-tools .import-resolution-trigger {
+  position: static;
+  width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px 14px 14px 5px;
+  line-height: 1.15;
+  text-align: left;
+  white-space: normal;
+  z-index: auto;
+  transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
+}
+
+.side-tools .type-analysis-trigger:hover,
+.side-tools .team-regulation-trigger:hover,
+.side-tools .compatibility-trigger:hover,
+.side-tools .operations-trigger:hover,
+.side-tools .pokemon-manager-trigger:hover,
+.side-tools .competitive-trigger:hover,
+.side-tools .import-resolution-trigger:hover {
+  transform: translateX(3px);
+  filter: brightness(1.06);
+}
+
+.side-tools .team-regulation-trigger span,
+.side-tools .pokemon-manager-trigger span,
+.side-tools .type-analysis-trigger span {
+  margin-right: 0;
+}
+
+@media (max-width: 760px) {
+  .side-tools .type-analysis-trigger,
+  .side-tools .team-regulation-trigger,
+  .side-tools .compatibility-trigger,
+  .side-tools .operations-trigger,
+  .side-tools .pokemon-manager-trigger,
+  .side-tools .competitive-trigger,
+  .side-tools .import-resolution-trigger {
+    width: 100%;
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}

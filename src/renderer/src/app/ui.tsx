@@ -28,7 +28,7 @@ export function artworkUrl(number: number | null | undefined): string | null {
 }
 
 export function titleize(value: string): string {
-  return value.split("-").map((part) => part ? part[0].toUpperCase() + part.slice(1) : part).join(" ");
+  return value.split("-").map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : part).join(" ");
 }
 
 export type SearchOption = { id: number | string; label: string; subtitle?: string; imageUrl?: string | null };
@@ -45,7 +45,7 @@ export function SearchSelect({ label, options, value, onChange, placeholder }: {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  useEffect(() => setQuery(selected?.label ?? ""), [selected?.label]);
+  useEffect(() => { window.queueMicrotask(() => setQuery(selected?.label ?? "")); }, [selected?.label]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -53,7 +53,7 @@ export function SearchSelect({ label, options, value, onChange, placeholder }: {
     return options.filter((option) => `${option.label} ${option.subtitle ?? ""}`.toLowerCase().includes(normalized)).slice(0, 80);
   }, [options, query, selected?.label]);
 
-  useEffect(() => setActiveIndex(0), [query]);
+  useEffect(() => { window.queueMicrotask(() => setActiveIndex(0)); }, [query]);
 
   function choose(option: SearchOption): void {
     onChange(option.id, option);
@@ -99,7 +99,7 @@ export function SearchSelect({ label, options, value, onChange, placeholder }: {
 
 export function PokemonImage({ src, name }: { src?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [src]);
+  useEffect(() => { window.queueMicrotask(() => setFailed(false)); }, [src]);
   if (!src || failed) return <div className="pokemon-image-fallback">?</div>;
   return <img className="pokemon-image" src={src} alt={name} loading="lazy" onError={() => setFailed(true)} />;
 }

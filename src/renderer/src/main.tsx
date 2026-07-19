@@ -12,18 +12,20 @@ import { TypeAnalysisOverlay } from "./TypeAnalysisOverlay";
 import { VisualEnhancer } from "./VisualEnhancer";
 import "./styles.css";
 import "./editor.css";
+import "./floating-actions.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AppV2 />
+    <AppV2 sideActions={<>
+      <TypeAnalysisOverlay />
+      <TeamRegulationOverlay />
+      <CompatibilityOverlay />
+      <OperationsOverlay />
+      <PokemonManagerOverlay />
+      <CompetitiveWorkspaceOverlay />
+      <ImportResolutionOverlay />
+    </>} />
     <VisualEnhancer />
     <ImageCacheEnhancer />
-    <TypeAnalysisOverlay />
-    <TeamRegulationOverlay />
-    <CompatibilityOverlay />
-    <OperationsOverlay />
-    <PokemonManagerOverlay />
-    <CompetitiveWorkspaceOverlay />
-    <ImportResolutionOverlay />
   </React.StrictMode>,
 );

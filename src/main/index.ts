@@ -10,7 +10,7 @@ import { cacheImageAsDataUrl } from "./image-cache";
 import { executeImportWithPolicies, previewImport } from "./import-review";
 import { getOwnedPokemonDetail, updateOwnedPokemon } from "./pokemon-management";
 import { listPokedex } from "./pokedex";
-import { createDatabaseBackup, exportCompleteJson, restoreDatabaseBackup } from "./system-data";
+import { createDatabaseBackup, exportBuildsJson, exportCompleteJson, exportTeamsJson, importBuildsJson, importTeamsJson, restoreDatabaseBackup } from "./system-data";
 import { analyzeTeam } from "./team-analysis";
 import { createTeam, getTeam, listTeams, removeTeam, updateTeam, validateTeam } from "./teams";
 
@@ -69,10 +69,15 @@ function registerIpc(): void {
   ipcMain.handle("data:backup", () => createDatabaseBackup());
   ipcMain.handle("data:restore", () => restoreDatabaseBackup());
   ipcMain.handle("data:export-json", () => exportCompleteJson());
+  ipcMain.handle("data:export-builds", () => exportBuildsJson());
+  ipcMain.handle("data:import-builds", () => importBuildsJson());
+  ipcMain.handle("data:export-teams", () => exportTeamsJson());
+  ipcMain.handle("data:import-teams", () => importTeamsJson());
 }
 
 function createWindow(): void {
-  const window = new BrowserWindow({ width:1440,height:900,minWidth:1024,minHeight:700,show:false,icon:join(app.getAppPath(),"build/icon.png"),backgroundColor:"#11162a",title:"GestorPoke",webPreferences:{ preload:join(__dirname,"../preload/index.js"),contextIsolation:true,nodeIntegration:false,sandbox:true } });
+  const window = new BrowserWindow({ width:1440,height:900,minWidth:1024,minHeight:700,show:false,autoHideMenuBar:true,icon:join(app.getAppPath(),"build/icon.png"),backgroundColor:"#11162a",title:"GestorPoke",webPreferences:{ preload:join(__dirname,"../preload/index.js"),contextIsolation:true,nodeIntegration:false,sandbox:true } });
+  window.setMenu(null);
   window.once("ready-to-show",()=>window.show());
   window.webContents.setWindowOpenHandler(({url})=>{ if(url.startsWith("https://")) void shell.openExternal(url); return {action:"deny"}; });
   window.webContents.on("will-navigate",(event,url)=>{ if(!url.startsWith("file://")&&!url.startsWith(process.env.ELECTRON_RENDERER_URL??"file://")) event.preventDefault(); });
@@ -81,6 +86,7 @@ function createWindow(): void {
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("disable-gpu");
+app.commandLine.appendSwitch("disable-gpu-sandbox");
 app.commandLine.appendSwitch("disable-gpu-compositing");
 app.whenReady().then(async()=>{ getDatabase(); registerIpc(); const catalog=getCatalogStatus(); if(!catalog.synchronizedAt){ try{ await synchronizePokedex(); } catch(error){ console.error("Não foi possível sincronizar a Pokédex completa no primeiro início.",error); } } createWindow(); app.on("activate",()=>{ if(BrowserWindow.getAllWindows().length===0) createWindow(); }); });
 app.on("window-all-closed",()=>{ if(process.platform!=="darwin") app.quit(); });

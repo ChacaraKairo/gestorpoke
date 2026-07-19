@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import type { BuildSummary, CatalogStatus, DashboardSummary, MoveCatalogEntry, PokedexEntry, PokemonSummary, TeamSummary } from "../../shared/contracts";
 import logoUrl from "./assets/logo.png";
 import { HomePage, MovesPage, PokedexPage, SettingsPage } from "./app/pages/CatalogPages";
@@ -8,7 +9,7 @@ import { emptyDashboard, errorMessage, type Page } from "./app/ui";
 import "./v2.css";
 import "./app/modular-pages.css";
 
-export function AppV2() {
+export function AppV2({ sideActions }: { sideActions?: ReactNode }) {
   const [page, setPage] = useState<Page>("home");
   const [dashboard, setDashboard] = useState<DashboardSummary>(emptyDashboard);
   const [pokedex, setPokedex] = useState<PokedexEntry[]>([]);
@@ -48,7 +49,7 @@ export function AppV2() {
     }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
   function openPokemonBuilds(id: number): void {
     setSelectedPokemonId(id);
@@ -70,6 +71,7 @@ export function AppV2() {
     <aside className="side-menu">
       <div className="brand"><img className="brand-logo" src={logoUrl} alt="GestorPoke" /><div><strong>GestorPoke</strong><small>Battle assistant</small></div></div>
       <nav>{nav.map((item) => <button className={page === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setPage(item.id)}><span>{item.icon}</span>{item.label}</button>)}</nav>
+      {sideActions ? <section className="side-tools" aria-label="Ferramentas">{sideActions}</section> : null}
       <div className="side-note"><span>Catálogo</span><strong>{catalogStatus?.speciesCount ?? 0} Pokémon</strong><small>{catalogStatus?.moveCount ?? 0} golpes</small></div>
     </aside>
     <main className="main-content">
