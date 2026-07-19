@@ -5,6 +5,7 @@ export type StatCode = (typeof statCodes)[number];
 export type BattleFormat = "single" | "double" | "both";
 export type StatModifier = "increased" | "decreased" | "neutral";
 export type AvailabilityStatus = "confirmed" | "unavailable" | "unknown";
+export type TeamRegulationKey = "open" | "pokemon-champions-active-208";
 
 export const moveImportSchema = z.object({
   slot: z.number().int().min(1).max(4),
@@ -96,9 +97,15 @@ export type UpsertBuildInput = {
 };
 
 export type TeamMember = BuildSummary & { position: number };
-export type TeamSummary = { id: number; name: string; format: "single" | "double"; description: string | null; memberCount: number; createdAt: string };
+export type TeamSummary = {
+  id: number; name: string; format: "single" | "double"; regulationKey: TeamRegulationKey;
+  description: string | null; memberCount: number; createdAt: string;
+};
 export type TeamDetail = TeamSummary & { members: TeamMember[] };
-export type UpsertTeamInput = { name: string; format: "single" | "double"; description?: string | null; buildIds: number[] };
+export type UpsertTeamInput = {
+  name: string; format: "single" | "double"; regulationKey?: TeamRegulationKey;
+  description?: string | null; buildIds: number[];
+};
 export type CreateTeamInput = UpsertTeamInput;
 
 export type CreatePokemonInput = {
