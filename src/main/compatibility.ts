@@ -36,6 +36,54 @@ async function fetchJson<T>(url: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function normalizeIdentifier(value: string): string {
+  return value.trim().toLowerCase().replace(/[.'’]/g, "").replace(/[\s_]+/g, "-").replace(/-+/g, "-");
+}
+
+export function resolvePokemonApiIdentifiers(
+  speciesName: string,
+  formName: string,
+  nationalDexNumber: number | null,
+): Array<string | number> {
+  const species = normalizeIdentifier(speciesName);
+  const form = normalizeIdentifier(formName || "default");
+  const identifiers: Array<string | number> = [];
+
+  if (form && form !== "default" && form !== "normal" && form !== "standard") {
+    if (form.startsWith(`${species}-`)) identifiers.push(form);
+    else identifiers.push(`${species}-${form}`);
+
+    const regionalAliases: Record<string, string> = {
+      alola: `${species}-alola`,
+      galar: `${species}-galar`,
+      hisui: `${species}-hisui`,
+      paldea: `${species}-paldea`,
+    };
+    if (regionalAliases[form]) identifiers.push(regionalAliases[form]);
+  }
+
+  if (nationalDexNumber != null) identifiers.push(nationalDexNumber);
+  identifiers.push(species);
+  return Array.from(new Set(identifiers));
+}
+
+async function fetchPokemonForForm(
+  speciesName: string,
+  formName: string,
+  nationalDexNumber: number | null,
+): Promise<PokemonApiResponse> {
+  const attempts = resolvePokemonApiIdentifiers(speciesName, formName, nationalDexNumber);
+  let lastError: Error | null = null;
+  for (const identifier of attempts) {
+    try {
+      return await fetchJson<PokemonApiResponse>(`${POKEAPI_BASE_URL}/pokemon/${encodeURIComponent(String(identifier))}`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Falha ao consultar a forma do Pokémon.");
+    }
+  }
+  throw lastError ?? new Error("Não foi possível localizar a espécie ou forma na PokéAPI.");
+}
+
 export function ensureCompatibilityTables(): void {
   getDatabase().exec(`
     CREATE TABLE IF NOT EXISTS species_ability_compatibility (
@@ -104,10 +152,7 @@ export function getPokemonCompatibility(ownedPokemonId: number): PokemonCompatib
   ensureCompatibilityTables();
   const species = findOwnedSpecies(ownedPokemonId);
   const db = getDatabase();
-  const metadata = db.prepare(`
-    SELECT synchronized_at FROM species_compatibility_metadata WHERE species_id = ?
-  `).get(species.speciesId) as { synchronized_at: string } | undefined;
-
+  const metadata = db.prepare(`SELECT synchronized_at FROM species_compatibility_metadata WHERE species_id = ?`).get(species.speciesId) as { synchronized_at: string } | undefined;
   const abilities = db.prepare(`
     SELECT c.id, c.name, c.description, c.availability, r.slot, r.is_hidden
     FROM species_ability_compatibility r
@@ -115,7 +160,6 @@ export function getPokemonCompatibility(ownedPokemonId: number): PokemonCompatib
     WHERE r.species_id = ?
     ORDER BY r.slot, r.ability_name COLLATE NOCASE
   `).all(species.speciesId) as Array<Record<string, unknown>>;
-
   const moves = db.prepare(`
     SELECT c.id, c.name, c.type, c.category, c.power, c.accuracy, c.pp, c.priority,
            c.target, c.description, c.availability, r.methods_json, r.version_groups_json,
@@ -132,16 +176,13 @@ export function getPokemonCompatibility(ownedPokemonId: number): PokemonCompatib
     formName: species.formName,
     synchronizedAt: metadata?.synchronized_at ?? null,
     abilities: abilities.map((row) => ({
-      id: Number(row.id),
-      name: String(row.name),
+      id: Number(row.id), name: String(row.name),
       description: row.description == null ? null : String(row.description),
       availability: (row.availability ?? "unknown") as AbilityCatalogEntry["availability"],
-      slot: Number(row.slot),
-      hidden: Boolean(row.is_hidden),
+      slot: Number(row.slot), hidden: Boolean(row.is_hidden),
     })),
     moves: moves.map((row) => ({
-      id: Number(row.id ?? row.move_id),
-      name: String(row.name ?? row.move_name),
+      id: Number(row.id ?? row.move_id), name: String(row.name ?? row.move_name),
       type: row.type == null ? null : String(row.type),
       category: row.category == null ? null : row.category as MoveCatalogEntry["category"],
       power: row.power == null ? null : Number(row.power),
@@ -160,37 +201,21 @@ export function getPokemonCompatibility(ownedPokemonId: number): PokemonCompatib
 export async function synchronizePokemonCompatibility(ownedPokemonId: number): Promise<PokemonCompatibility> {
   ensureCompatibilityTables();
   const species = findOwnedSpecies(ownedPokemonId);
-  const identifier = species.nationalDexNumber ?? species.speciesName;
-  const pokemon = await fetchJson<PokemonApiResponse>(`${POKEAPI_BASE_URL}/pokemon/${encodeURIComponent(String(identifier))}`);
+  const pokemon = await fetchPokemonForForm(species.speciesName, species.formName, species.nationalDexNumber);
   const db = getDatabase();
 
   db.transaction(() => {
     db.prepare("DELETE FROM species_ability_compatibility WHERE species_id = ?").run(species.speciesId);
     db.prepare("DELETE FROM species_move_compatibility WHERE species_id = ?").run(species.speciesId);
-
-    const ensureAbility = db.prepare(`
-      INSERT INTO catalog_abilities (id, name) VALUES (?, ?)
-      ON CONFLICT(id) DO UPDATE SET name = excluded.name
-    `);
-    const insertAbility = db.prepare(`
-      INSERT INTO species_ability_compatibility (species_id, ability_id, ability_name, slot, is_hidden)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    const ensureAbility = db.prepare(`INSERT INTO catalog_abilities (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name`);
+    const insertAbility = db.prepare(`INSERT INTO species_ability_compatibility (species_id, ability_id, ability_name, slot, is_hidden) VALUES (?, ?, ?, ?, ?)`);
     for (const entry of pokemon.abilities) {
       const id = resourceId(entry.ability.url);
       ensureAbility.run(id, entry.ability.name);
       insertAbility.run(species.speciesId, id, entry.ability.name, entry.slot, entry.is_hidden ? 1 : 0);
     }
-
-    const ensureMove = db.prepare(`
-      INSERT INTO catalog_moves (id, name) VALUES (?, ?)
-      ON CONFLICT(id) DO UPDATE SET name = excluded.name
-    `);
-    const insertMove = db.prepare(`
-      INSERT INTO species_move_compatibility
-        (species_id, move_id, move_name, methods_json, version_groups_json)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    const ensureMove = db.prepare(`INSERT INTO catalog_moves (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name`);
+    const insertMove = db.prepare(`INSERT INTO species_move_compatibility (species_id, move_id, move_name, methods_json, version_groups_json) VALUES (?, ?, ?, ?, ?)`);
     for (const entry of pokemon.moves) {
       const id = resourceId(entry.move.url);
       const methods = Array.from(new Set(entry.version_group_details.map((detail) => detail.move_learn_method.name)));
@@ -198,7 +223,6 @@ export async function synchronizePokemonCompatibility(ownedPokemonId: number): P
       ensureMove.run(id, entry.move.name);
       insertMove.run(species.speciesId, id, entry.move.name, JSON.stringify(methods), JSON.stringify(versionGroups));
     }
-
     db.prepare(`
       INSERT INTO species_compatibility_metadata (species_id, pokemon_api_id, synchronized_at)
       VALUES (?, ?, ?)
@@ -209,24 +233,14 @@ export async function synchronizePokemonCompatibility(ownedPokemonId: number): P
   return getPokemonCompatibility(ownedPokemonId);
 }
 
-export function validateBuildCompatibility(
-  ownedPokemonId: number,
-  ability: string | null | undefined,
-  moves: Array<{ name: string }>,
-): void {
+export function validateBuildCompatibility(ownedPokemonId: number, ability: string | null | undefined, moves: Array<{ name: string }>): void {
   ensureCompatibilityTables();
   const compatibility = getPokemonCompatibility(ownedPokemonId);
   if (!compatibility.synchronizedAt) return;
-
   const normalize = (value: string): string => value.trim().toLowerCase().replace(/[\s_]+/g, "-");
   const allowedAbilities = new Set(compatibility.abilities.map((entry) => normalize(entry.name)));
   const allowedMoves = new Set(compatibility.moves.map((entry) => normalize(entry.name)));
-
-  if (ability?.trim() && !allowedAbilities.has(normalize(ability))) {
-    throw new Error(`A habilidade “${ability}” não é compatível com ${compatibility.speciesName}.`);
-  }
+  if (ability?.trim() && !allowedAbilities.has(normalize(ability))) throw new Error(`A habilidade “${ability}” não é compatível com ${compatibility.speciesName} (${compatibility.formName}).`);
   const blockedMoves = moves.map((move) => move.name).filter((name) => !allowedMoves.has(normalize(name)));
-  if (blockedMoves.length) {
-    throw new Error(`Golpes incompatíveis com ${compatibility.speciesName}: ${blockedMoves.join(", ")}.`);
-  }
+  if (blockedMoves.length) throw new Error(`Golpes incompatíveis com ${compatibility.speciesName} (${compatibility.formName}): ${blockedMoves.join(", ")}.`);
 }
