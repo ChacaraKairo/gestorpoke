@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { AppV2 } from "./AppV2";
 import { CompatibilityOverlay } from "./CompatibilityOverlay";
 import { OperationsOverlay } from "./OperationsOverlay";
+import { PokemonManagerOverlay } from "./PokemonManagerOverlay";
 import { TeamRegulationOverlay } from "./TeamRegulationOverlay";
 import { TypeAnalysisOverlay } from "./TypeAnalysisOverlay";
 import { VisualEnhancer } from "./VisualEnhancer";
@@ -17,5 +18,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <TeamRegulationOverlay />
     <CompatibilityOverlay />
     <OperationsOverlay />
+    <PokemonManagerOverlay />
   </React.StrictMode>,
 );
