@@ -1,0 +1,15 @@
+export const POKEMON_CHAMPIONS_REGULATION_KEY = "pokemon-champions-active-208" as const;
+
+export const pokemonChampionsActiveSpecies = [
+  "venusaur", "charizard", "blastoise", "beedrill", "pidgeot", "arbok", "pikachu", "raichu", "clefable", "ninetales", "vileplume", "arcanine", "alakazam", "machamp", "victreebel", "slowbro", "gengar", "kangaskhan", "starmie", "pinsir", "tauros", "gyarados", "ditto", "vaporeon", "jolteon", "flareon", "aerodactyl", "snorlax", "dragonite", "meganium", "typhlosion", "feraligatr", "ariados", "ampharos", "azumarill", "politoed", "espeon", "umbreon", "slowking", "forretress", "steelix", "qwilfish", "scizor", "heracross", "skarmory", "houndoom", "tyranitar", "sceptile", "blaziken", "swampert", "pelipper", "gardevoir", "sableye", "mawile", "aggron", "medicham", "manectric", "sharpedo", "camerupt", "torkoal", "altaria", "milotic", "castform", "banette", "chimecho", "absol", "glalie", "metagross", "torterra", "infernape", "empoleon", "staraptor", "luxray", "roserade", "rampardos", "bastiodon", "lopunny", "spiritomb", "garchomp", "lucario", "hippowdon", "toxicroak", "abomasnow", "weavile", "rhyperior", "leafeon", "glaceon", "gliscor", "mamoswine", "gallade", "froslass", "rotom", "serperior", "emboar", "samurott", "watchog", "liepard", "simisage", "simisear", "simipour", "musharna", "excadrill", "audino", "conkeldurr", "scolipede", "whimsicott", "krookodile", "scrafty", "cofagrigus", "garbodor", "zoroark", "reuniclus", "vanilluxe", "emolga", "eelektross", "chandelure", "beartic", "stunfisk", "golurk", "hydreigon", "volcarona", "chesnaught", "delphox", "greninja", "diggersby", "talonflame", "vivillon", "pyroar", "floette", "florges", "pangoro", "furfrou", "meowstic", "aegislash", "aromatisse", "slurpuff", "malamar", "barbaracle", "dragalge", "clawitzer", "heliolisk", "tyrantrum", "aurorus", "sylveon", "hawlucha", "dedenne", "goodra", "klefki", "trevenant", "gourgeist", "avalugg", "noivern", "decidueye", "incineroar", "primarina", "toucannon", "wishiwashi", "lycanroc", "toxapex", "mudsdale", "araquanid", "salazzle", "tsareena", "passimian", "oranguru", "mimikyu", "drampa", "kommo-o", "corviknight", "flapple", "appletun", "sandaconda", "polteageist", "hatterene", "grimmsnarl", "mr-rime", "runerigus", "alcremie", "falinks", "morpeko", "dragapult", "wyrdeer", "kleavor", "basculegion", "sneasler", "overqwil", "meowscarada", "skeledirge", "quaquaval", "maushold", "garganacl", "armarouge", "ceruledge", "bellibolt", "arboliva", "espathra", "tinkaton", "palafin", "orthworm", "glimmora", "houndstone", "annihilape", "farigiraf", "kingambit", "gholdengo", "poltchageist", "archaludon", "hydrapple"
+] as const;
+
+const activeSpeciesSet = new Set<string>(pokemonChampionsActiveSpecies);
+
+export function normalizeSpeciesName(value: string): string {
+  return value.trim().toLowerCase().replace(/[.'’]/g, "").replace(/\s+/g, "-");
+}
+
+export function isPokemonChampionsActiveSpecies(speciesName: string): boolean {
+  return activeSpeciesSet.has(normalizeSpeciesName(speciesName));
+}
