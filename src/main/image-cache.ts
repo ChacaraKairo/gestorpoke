@@ -1,14 +1,7 @@
 import { app } from "electron";
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
-
-const ALLOWED_HOSTS = new Set([
-  "raw.githubusercontent.com",
-  "raw.githubusercontent.com",
-  "pokeapi.co",
-  "sprites.pokeapi.co",
-]);
+import { imageCacheKey, validateCacheableImageUrl } from "../shared/image-cache";
 
 function cacheDirectory(): string {
   const directory = join(app.getPath("userData"), "cache", "images");
@@ -26,20 +19,8 @@ function mimeFromExtension(extension: string): string {
   }
 }
 
-export function imageCacheKey(url: string): string {
-  return createHash("sha256").update(url).digest("hex");
-}
-
-function validateImageUrl(value: string): URL {
-  const url = new URL(value);
-  if (url.protocol !== "https:" || !ALLOWED_HOSTS.has(url.hostname)) {
-    throw new Error("A imagem não pertence a uma fonte permitida pelo GestorPoke.");
-  }
-  return url;
-}
-
 export async function cacheImageAsDataUrl(value: string): Promise<string> {
-  const url = validateImageUrl(value);
+  const url = validateCacheableImageUrl(value);
   const extension = extname(url.pathname).toLowerCase() || ".png";
   const safeExtension = [".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(extension) ? extension : ".png";
   const filePath = join(cacheDirectory(), `${imageCacheKey(url.toString())}${safeExtension}`);
