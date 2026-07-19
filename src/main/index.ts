@@ -5,12 +5,14 @@ import { createBuild, duplicateBuild, getBuild, listBuilds, removeBuild, updateB
 import { getCatalogStatus, listAbilities, listItems, listMoves, synchronizeAbilities, synchronizeItems, synchronizeMoves, synchronizePokedex } from "./catalog";
 import { getPokemonCompatibility, synchronizePokemonCompatibility } from "./compatibility";
 import { closeDatabase, createPokemon, executeImport, getDashboardSummary, getDatabase, listPokemon, removePokemon, validateImport } from "./database";
+import { getOwnedPokemonDetail, updateOwnedPokemon } from "./pokemon-management";
 import { listPokedex } from "./pokedex";
 import { createDatabaseBackup, exportCompleteJson } from "./system-data";
 import { createTeam, getTeam, listTeams, removeTeam, updateTeam, validateTeam } from "./teams";
 
 const positiveIdSchema = z.number().int().positive();
 const createPokemonSchema = z.object({ speciesName:z.string().trim().min(1), nationalDexNumber:z.number().int().positive().nullable().optional(), nickname:z.string().trim().nullable().optional(), formName:z.string().trim().default("default"), types:z.array(z.string().trim().min(1)).max(2).default([]), ownershipStatus:z.enum(["permanent","trial","visitor"]), acquisitionSource:z.enum(["champions","pokemon_home","other"]), buildName:z.string().trim().min(1), ability:z.string().trim().nullable().optional(), statAlignment:z.string().trim().nullable().optional(), heldItem:z.string().trim().nullable().optional() });
+const updatePokemonSchema = z.object({ nickname:z.string().trim().nullable().optional(), gender:z.enum(["male","female","genderless","unknown"]), ownershipStatus:z.enum(["permanent","trial","visitor"]), acquisitionSource:z.enum(["champions","pokemon_home","other"]), notes:z.string().trim().max(10000).nullable().optional() });
 const upsertTeamSchema = z.object({ name:z.string().trim().min(1), format:z.enum(["single","double"]), description:z.string().trim().nullable().optional(), regulationKey:z.enum(["open","pokemon-champions-active-208"]).default("open"), buildIds:z.array(positiveIdSchema).max(6) });
 const buildMoveSchema = z.object({ slot:z.union([z.literal(1),z.literal(2),z.literal(3),z.literal(4)]), name:z.string().trim().min(1), type:z.string().trim().nullable(), pp:z.number().int().nonnegative().nullable() });
 const buildStatSchema = z.object({ statCode:z.enum(["hp","attack","defense","specialAttack","specialDefense","speed"]), finalValue:z.number().int().nonnegative().nullable(), trainingPoints:z.number().int().nonnegative().nullable(), modifier:z.enum(["increased","decreased","neutral"]) });
@@ -19,7 +21,9 @@ const upsertBuildSchema = z.object({ ownedPokemonId:positiveIdSchema, name:z.str
 function registerIpc(): void {
   ipcMain.handle("dashboard:get-summary", () => getDashboardSummary());
   ipcMain.handle("pokemon:list", () => listPokemon());
+  ipcMain.handle("pokemon:get", (_event,id:unknown) => getOwnedPokemonDetail(positiveIdSchema.parse(id)));
   ipcMain.handle("pokemon:create", (_event,input:unknown) => createPokemon(createPokemonSchema.parse(input)));
+  ipcMain.handle("pokemon:update", (_event,id:unknown,input:unknown) => updateOwnedPokemon(positiveIdSchema.parse(id),updatePokemonSchema.parse(input)));
   ipcMain.handle("pokemon:remove", (_event,id:unknown) => removePokemon(positiveIdSchema.parse(id)));
   ipcMain.handle("pokedex:list", () => listPokedex());
   ipcMain.handle("pokedex:status", () => getCatalogStatus());
