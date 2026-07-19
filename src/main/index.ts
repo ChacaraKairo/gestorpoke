@@ -1,17 +1,14 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { z } from "zod";
-import {
-  createBuild,
-  duplicateBuild,
-  getBuild,
-  listBuilds,
-  removeBuild,
-  updateBuild,
-} from "./builds";
+import { createBuild, duplicateBuild, getBuild, listBuilds, removeBuild, updateBuild } from "./builds";
 import {
   getCatalogStatus,
+  listAbilities,
+  listItems,
   listMoves,
+  synchronizeAbilities,
+  synchronizeItems,
   synchronizeMoves,
   synchronizePokedex,
 } from "./catalog";
@@ -86,6 +83,10 @@ function registerIpc(): void {
   ipcMain.handle("pokedex:synchronize", () => synchronizePokedex());
   ipcMain.handle("moves:list", () => listMoves());
   ipcMain.handle("moves:synchronize", () => synchronizeMoves());
+  ipcMain.handle("abilities:list", () => listAbilities());
+  ipcMain.handle("abilities:synchronize", () => synchronizeAbilities());
+  ipcMain.handle("items:list", () => listItems());
+  ipcMain.handle("items:synchronize", () => synchronizeItems());
 
   ipcMain.handle("builds:list", () => listBuilds());
   ipcMain.handle("builds:get", (_event, id: unknown) => getBuild(z.number().int().positive().parse(id)));
@@ -104,8 +105,8 @@ function registerIpc(): void {
   );
   ipcMain.handle("teams:remove", (_event, id: unknown) => removeTeam(z.number().int().positive().parse(id)));
 
-  ipcMain.handle("imports:validate", (_event, jsonText: unknown) => validateImport(z.string().parse(jsonText)));
-  ipcMain.handle("imports:execute", (_event, jsonText: unknown) => executeImport(z.string().parse(jsonText)));
+  ipcMain.handle("imports:validate", (_event, jsonText: unknown) => validateImport(z.string().max(10_000_000).parse(jsonText)));
+  ipcMain.handle("imports:execute", (_event, jsonText: unknown) => executeImport(z.string().max(10_000_000).parse(jsonText)));
 }
 
 function createWindow(): void {
@@ -131,6 +132,9 @@ function createWindow(): void {
     if (url.startsWith("https://")) void shell.openExternal(url);
     return { action: "deny" };
   });
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith("file://") && !url.startsWith(process.env.ELECTRON_RENDERER_URL ?? "file://")) event.preventDefault();
+  });
 
   if (process.env.ELECTRON_RENDERER_URL) void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void window.loadFile(join(__dirname, "../renderer/index.html"));
@@ -146,21 +150,13 @@ app.whenReady().then(async () => {
 
   const catalog = getCatalogStatus();
   if (!catalog.synchronizedAt) {
-    try {
-      await synchronizePokedex();
-    } catch (error) {
-      console.error("Não foi possível sincronizar a Pokédex completa no primeiro início.", error);
-    }
+    try { await synchronizePokedex(); }
+    catch (error) { console.error("Não foi possível sincronizar a Pokédex completa no primeiro início.", error); }
   }
 
   createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+  app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
-
+app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 app.on("before-quit", closeDatabase);
