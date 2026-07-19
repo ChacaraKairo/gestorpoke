@@ -11,11 +11,13 @@ export function OperationsOverlay() {
   const [validation,setValidation]=useState<TeamValidationResult|null>(null);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState<string|null>(null);
+  const [confirmRestore,setConfirmRestore]=useState(false);
 
   useEffect(()=>{ if(!open) return; void window.gestorPoke.teams.list().then(setTeams); },[open]);
 
   async function validateTeam(id:number):Promise<void>{ setSelectedTeamId(id); setBusy(true); try{ setValidation(await window.gestorPoke.teams.validate(id)); setMessage(null); }catch(error){ setMessage(error instanceof Error?error.message:"Falha ao validar a equipe."); }finally{ setBusy(false); } }
-  async function runFileOperation(operation:()=>Promise<FileOperationResult>,label:string):Promise<void>{ setBusy(true); try{ const result=await operation(); if(result.canceled){ setMessage("Operação cancelada."); return; } setMessage(`${label} criado com sucesso: ${result.filePath} (${formatBytes(result.bytes)}).`); }catch(error){ setMessage(error instanceof Error?error.message:"Falha na operação."); }finally{ setBusy(false); } }
+  async function runFileOperation(operation:()=>Promise<FileOperationResult>,label:string):Promise<void>{ setBusy(true); try{ const result=await operation(); if(result.canceled){ setMessage("Operação cancelada."); return; } setMessage(`${label} concluído com sucesso: ${result.filePath} (${formatBytes(result.bytes)}).`); }catch(error){ setMessage(error instanceof Error?error.message:"Falha na operação."); }finally{ setBusy(false); } }
+  async function restore():Promise<void>{ setConfirmRestore(false); await runFileOperation(()=>window.gestorPoke.data.restore(),"Restauração"); }
 
   return <>
     <button className="operations-trigger" type="button" onClick={()=>setOpen(true)}>▣ Dados e validação</button>
@@ -24,8 +26,10 @@ export function OperationsOverlay() {
         <header><div><span className="eyebrow">Segurança e qualidade</span><h1>Central de operações</h1><p>Proteja seus dados e verifique equipes antes de usar no Pokémon Champions.</p></div><button className="danger-button" onClick={()=>setOpen(false)}>Fechar</button></header>
         <div className="operations-grid">
           <article className="operations-card"><h2>Backup do banco</h2><p>Cria uma cópia consistente do SQLite, incluindo dados em modo WAL.</p><button className="primary-button" disabled={busy} onClick={()=>void runFileOperation(()=>window.gestorPoke.data.backup(),"Backup")}>Criar backup</button></article>
+          <article className="operations-card"><h2>Restauração protegida</h2><p>Valida a integridade do arquivo e cria uma cópia automática do banco atual antes da troca.</p><button className="danger-button" disabled={busy} onClick={()=>setConfirmRestore(true)}>Restaurar backup</button></article>
           <article className="operations-card"><h2>Exportação completa</h2><p>Exporta Pokémon, builds, equipes e estado dos catálogos para JSON legível.</p><button className="secondary-button" disabled={busy} onClick={()=>void runFileOperation(()=>window.gestorPoke.data.exportJson(),"Exportação")}>Exportar JSON</button></article>
         </div>
+        {confirmRestore?<div className="restore-confirmation" role="alertdialog" aria-modal="true" aria-label="Confirmar restauração"><h2>Confirmar restauração</h2><p>O banco atual será substituído pelo arquivo escolhido. Uma cópia de segurança automática será criada antes da troca. Feche formulários abertos e confirme somente depois de salvar alterações.</p><div className="form-actions"><button className="secondary-button" disabled={busy} onClick={()=>setConfirmRestore(false)}>Cancelar</button><button className="danger-button" disabled={busy} onClick={()=>void restore()}>Escolher arquivo e restaurar</button></div></div>:null}
         <section className="team-validation-section">
           <div className="section-heading"><div><span className="eyebrow">Validação competitiva</span><h2>Equipes</h2></div></div>
           <div className="validation-layout">
