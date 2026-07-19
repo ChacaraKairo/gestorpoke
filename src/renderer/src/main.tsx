@@ -5,6 +5,7 @@ import { BuildFormCompatibility } from "./BuildFormCompatibility";
 import { CompatibilityOverlay } from "./CompatibilityOverlay";
 import { CompetitiveWorkspaceOverlay } from "./CompetitiveWorkspaceOverlay";
 import { ImageCacheEnhancer } from "./ImageCacheEnhancer";
+import { ImportResolutionOverlay } from "./ImportResolutionOverlay";
 import { OperationsOverlay } from "./OperationsOverlay";
 import { PokemonManagerOverlay } from "./PokemonManagerOverlay";
 import { TeamRegulationOverlay } from "./TeamRegulationOverlay";
@@ -25,5 +26,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <OperationsOverlay />
     <PokemonManagerOverlay />
     <CompetitiveWorkspaceOverlay />
+    <ImportResolutionOverlay />
   </React.StrictMode>,
 );
