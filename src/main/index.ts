@@ -9,20 +9,24 @@ import {
   removeBuild,
   updateBuild,
 } from "./builds";
-import { getCatalogStatus, synchronizePokedex } from "./catalog";
+import {
+  getCatalogStatus,
+  listMoves,
+  synchronizeMoves,
+  synchronizePokedex,
+} from "./catalog";
 import {
   closeDatabase,
   createPokemon,
-  createTeam,
   executeImport,
   getDashboardSummary,
   getDatabase,
   listPokemon,
-  listTeams,
   removePokemon,
   validateImport,
 } from "./database";
 import { listPokedex } from "./pokedex";
+import { createTeam, getTeam, listTeams, removeTeam, updateTeam } from "./teams";
 
 const createPokemonSchema = z.object({
   speciesName: z.string().trim().min(1),
@@ -38,7 +42,7 @@ const createPokemonSchema = z.object({
   heldItem: z.string().trim().nullable().optional(),
 });
 
-const createTeamSchema = z.object({
+const upsertTeamSchema = z.object({
   name: z.string().trim().min(1),
   format: z.enum(["single", "double"]),
   description: z.string().trim().nullable().optional(),
@@ -80,6 +84,8 @@ function registerIpc(): void {
   ipcMain.handle("pokedex:list", () => listPokedex());
   ipcMain.handle("pokedex:status", () => getCatalogStatus());
   ipcMain.handle("pokedex:synchronize", () => synchronizePokedex());
+  ipcMain.handle("moves:list", () => listMoves());
+  ipcMain.handle("moves:synchronize", () => synchronizeMoves());
 
   ipcMain.handle("builds:list", () => listBuilds());
   ipcMain.handle("builds:get", (_event, id: unknown) => getBuild(z.number().int().positive().parse(id)));
@@ -91,7 +97,13 @@ function registerIpc(): void {
   ipcMain.handle("builds:duplicate", (_event, id: unknown) => duplicateBuild(z.number().int().positive().parse(id)));
 
   ipcMain.handle("teams:list", () => listTeams());
-  ipcMain.handle("teams:create", (_event, input: unknown) => createTeam(createTeamSchema.parse(input)));
+  ipcMain.handle("teams:get", (_event, id: unknown) => getTeam(z.number().int().positive().parse(id)));
+  ipcMain.handle("teams:create", (_event, input: unknown) => createTeam(upsertTeamSchema.parse(input)));
+  ipcMain.handle("teams:update", (_event, id: unknown, input: unknown) =>
+    updateTeam(z.number().int().positive().parse(id), upsertTeamSchema.parse(input)),
+  );
+  ipcMain.handle("teams:remove", (_event, id: unknown) => removeTeam(z.number().int().positive().parse(id)));
+
   ipcMain.handle("imports:validate", (_event, jsonText: unknown) => validateImport(z.string().parse(jsonText)));
   ipcMain.handle("imports:execute", (_event, jsonText: unknown) => executeImport(z.string().parse(jsonText)));
 }
