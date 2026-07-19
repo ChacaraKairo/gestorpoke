@@ -25,6 +25,10 @@ const api: AppApi = {
     list: () => ipcRenderer.invoke("items:list"),
     synchronize: () => ipcRenderer.invoke("items:synchronize"),
   },
+  compatibility: {
+    get: (ownedPokemonId: number) => ipcRenderer.invoke("compatibility:get", ownedPokemonId),
+    synchronize: (ownedPokemonId: number) => ipcRenderer.invoke("compatibility:synchronize", ownedPokemonId),
+  },
   builds: {
     list: () => ipcRenderer.invoke("builds:list"),
     get: (id: number) => ipcRenderer.invoke("builds:get", id),
