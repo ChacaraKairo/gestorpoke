@@ -43,6 +43,7 @@ const upsertTeamSchema = z.object({
   name: z.string().trim().min(1),
   format: z.enum(["single", "double"]),
   description: z.string().trim().nullable().optional(),
+  regulationKey: z.enum(["open", "pokemon-champions-active-208"]).default("open"),
   buildIds: z.array(z.number().int().positive()).max(6),
 });
 
