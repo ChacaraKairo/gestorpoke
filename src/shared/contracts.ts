@@ -6,6 +6,7 @@ export type BattleFormat = "single" | "double" | "both";
 export type StatModifier = "increased" | "decreased" | "neutral";
 export type AvailabilityStatus = "confirmed" | "unavailable" | "unknown";
 export type TeamRegulationKey = "open" | "pokemon-champions-active-208";
+export type PokemonGender = "male" | "female" | "genderless" | "unknown";
 
 export const moveImportSchema = z.object({ slot: z.number().int().min(1).max(4), name: z.string().trim().min(1), type: z.string().trim().optional(), pp: z.number().int().nonnegative().nullable().optional() });
 const statValueSchema = z.object({ finalValue: z.number().int().nonnegative().nullable().optional(), trainingPoints: z.number().int().nonnegative().nullable().optional(), modifier: z.enum(["increased", "decreased", "neutral"]).optional() });
@@ -20,6 +21,8 @@ export type PokemonImportRecord = z.infer<typeof pokemonImportRecordSchema>;
 
 export type DashboardSummary = { ownedPokemon: number; builds: number; teams: number; recentPokemon: PokemonSummary[] };
 export type PokemonSummary = { id: number; speciesName: string; nationalDexNumber: number | null; nickname: string | null; formName: string; types: string[]; imageUrl?: string | null; ability: string | null; statAlignment: string | null; heldItem: string | null; ownershipStatus: "permanent" | "trial" | "visitor"; acquisitionSource: "champions" | "pokemon_home" | "other"; buildCount: number; createdAt: string };
+export type OwnedPokemonDetail = PokemonSummary & { gender: PokemonGender; notes: string | null; updatedAt: string; builds: BuildSummary[] };
+export type UpdatePokemonInput = { nickname?: string | null; gender: PokemonGender; ownershipStatus: PokemonSummary["ownershipStatus"]; acquisitionSource: PokemonSummary["acquisitionSource"]; notes?: string | null };
 export type PokedexEntry = { id: number; speciesName: string; nationalDexNumber: number | null; formName: string; types: string[]; imageUrl: string | null; ownedCount: number; buildCount: number; firstSeenAt: string };
 export type CatalogStatus = { speciesCount: number; moveCount: number; abilityCount: number; itemCount: number; synchronizedAt: string | null; source: string };
 export type CatalogSyncResult = CatalogStatus & { imported: number; updated: number };
@@ -48,7 +51,7 @@ export type TeamValidationResult = { teamId: number; valid: boolean; issues: Tea
 
 export type AppApi = {
   dashboard: { getSummary(): Promise<DashboardSummary> };
-  pokemon: { list(): Promise<PokemonSummary[]>; create(input: CreatePokemonInput): Promise<PokemonSummary>; remove(id: number): Promise<void> };
+  pokemon: { list(): Promise<PokemonSummary[]>; get(id: number): Promise<OwnedPokemonDetail>; create(input: CreatePokemonInput): Promise<PokemonSummary>; update(id: number, input: UpdatePokemonInput): Promise<OwnedPokemonDetail>; remove(id: number): Promise<void> };
   pokedex: { list(): Promise<PokedexEntry[]>; status(): Promise<CatalogStatus>; synchronize(): Promise<CatalogSyncResult> };
   moves: { list(): Promise<MoveCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
   abilities: { list(): Promise<AbilityCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
