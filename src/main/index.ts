@@ -9,6 +9,7 @@ import {
   removeBuild,
   updateBuild,
 } from "./builds";
+import { getCatalogStatus, synchronizePokedex } from "./catalog";
 import {
   closeDatabase,
   createPokemon,
@@ -75,7 +76,10 @@ function registerIpc(): void {
   ipcMain.handle("pokemon:list", () => listPokemon());
   ipcMain.handle("pokemon:create", (_event, input: unknown) => createPokemon(createPokemonSchema.parse(input)));
   ipcMain.handle("pokemon:remove", (_event, id: unknown) => removePokemon(z.number().int().positive().parse(id)));
+
   ipcMain.handle("pokedex:list", () => listPokedex());
+  ipcMain.handle("pokedex:status", () => getCatalogStatus());
+  ipcMain.handle("pokedex:synchronize", () => synchronizePokedex());
 
   ipcMain.handle("builds:list", () => listBuilds());
   ipcMain.handle("builds:get", (_event, id: unknown) => getBuild(z.number().int().positive().parse(id)));
@@ -124,9 +128,19 @@ app.disableHardwareAcceleration();
 app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-gpu-compositing");
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   getDatabase();
   registerIpc();
+
+  const catalog = getCatalogStatus();
+  if (!catalog.synchronizedAt) {
+    try {
+      await synchronizePokedex();
+    } catch (error) {
+      console.error("Não foi possível sincronizar a Pokédex completa no primeiro início.", error);
+    }
+  }
+
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
