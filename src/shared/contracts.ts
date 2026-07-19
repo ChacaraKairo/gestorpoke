@@ -83,6 +83,16 @@ export type MoveCatalogEntry = {
 };
 export type AbilityCatalogEntry = { id: number; name: string; description: string | null; availability: AvailabilityStatus };
 export type ItemCatalogEntry = { id: number; name: string; description: string | null; imageUrl: string | null; availability: AvailabilityStatus };
+export type CompatibleAbility = AbilityCatalogEntry & { slot: number; hidden: boolean };
+export type CompatibleMove = MoveCatalogEntry & { methods: string[]; versionGroups: string[] };
+export type PokemonCompatibility = {
+  ownedPokemonId: number;
+  speciesName: string;
+  formName: string;
+  synchronizedAt: string | null;
+  abilities: CompatibleAbility[];
+  moves: CompatibleMove[];
+};
 
 export type BuildMove = { slot: 1 | 2 | 3 | 4; name: string; type: string | null; pp: number | null };
 export type BuildStat = { statCode: StatCode; finalValue: number | null; trainingPoints: number | null; modifier: StatModifier };
@@ -123,6 +133,10 @@ export type AppApi = {
   moves: { list(): Promise<MoveCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
   abilities: { list(): Promise<AbilityCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
   items: { list(): Promise<ItemCatalogEntry[]>; synchronize(): Promise<CatalogSyncResult> };
+  compatibility: {
+    get(ownedPokemonId: number): Promise<PokemonCompatibility>;
+    synchronize(ownedPokemonId: number): Promise<PokemonCompatibility>;
+  };
   builds: {
     list(): Promise<BuildSummary[]>; get(id: number): Promise<BuildDetail>; create(input: UpsertBuildInput): Promise<BuildDetail>;
     update(id: number, input: UpsertBuildInput): Promise<BuildDetail>; remove(id: number): Promise<void>; duplicate(id: number): Promise<BuildDetail>;
