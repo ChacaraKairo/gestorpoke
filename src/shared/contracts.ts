@@ -10,6 +10,8 @@ export const statCodes = [
 ] as const;
 
 export type StatCode = (typeof statCodes)[number];
+export type BattleFormat = "single" | "double" | "both";
+export type StatModifier = "increased" | "decreased" | "neutral";
 
 export const moveImportSchema = z.object({
   slot: z.number().int().min(1).max(4),
@@ -104,16 +106,48 @@ export type PokedexEntry = {
   firstSeenAt: string;
 };
 
+export type BuildMove = {
+  slot: 1 | 2 | 3 | 4;
+  name: string;
+  type: string | null;
+  pp: number | null;
+};
+
+export type BuildStat = {
+  statCode: StatCode;
+  finalValue: number | null;
+  trainingPoints: number | null;
+  modifier: StatModifier;
+};
+
 export type BuildSummary = {
   id: number;
   ownedPokemonId: number;
   speciesName: string;
   pokemonName: string;
   buildName: string;
-  format: "single" | "double" | "both";
+  format: BattleFormat;
   ability: string | null;
   statAlignment: string | null;
   heldItem: string | null;
+};
+
+export type BuildDetail = BuildSummary & {
+  notes: string | null;
+  moves: BuildMove[];
+  stats: BuildStat[];
+};
+
+export type UpsertBuildInput = {
+  ownedPokemonId: number;
+  name: string;
+  format: BattleFormat;
+  ability?: string | null;
+  statAlignment?: string | null;
+  heldItem?: string | null;
+  notes?: string | null;
+  moves: BuildMove[];
+  stats: BuildStat[];
 };
 
 export type TeamSummary = {
@@ -166,6 +200,11 @@ export type AppApi = {
   };
   builds: {
     list(): Promise<BuildSummary[]>;
+    get(id: number): Promise<BuildDetail>;
+    create(input: UpsertBuildInput): Promise<BuildDetail>;
+    update(id: number, input: UpsertBuildInput): Promise<BuildDetail>;
+    remove(id: number): Promise<void>;
+    duplicate(id: number): Promise<BuildDetail>;
   };
   teams: {
     list(): Promise<TeamSummary[]>;
