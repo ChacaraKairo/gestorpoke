@@ -12,6 +12,7 @@ import {
   synchronizeMoves,
   synchronizePokedex,
 } from "./catalog";
+import { getPokemonCompatibility, synchronizePokemonCompatibility } from "./compatibility";
 import {
   closeDatabase,
   createPokemon,
@@ -25,6 +26,7 @@ import {
 import { listPokedex } from "./pokedex";
 import { createTeam, getTeam, listTeams, removeTeam, updateTeam } from "./teams";
 
+const positiveIdSchema = z.number().int().positive();
 const createPokemonSchema = z.object({
   speciesName: z.string().trim().min(1),
   nationalDexNumber: z.number().int().positive().nullable().optional(),
@@ -44,7 +46,7 @@ const upsertTeamSchema = z.object({
   format: z.enum(["single", "double"]),
   description: z.string().trim().nullable().optional(),
   regulationKey: z.enum(["open", "pokemon-champions-active-208"]).default("open"),
-  buildIds: z.array(z.number().int().positive()).max(6),
+  buildIds: z.array(positiveIdSchema).max(6),
 });
 
 const buildMoveSchema = z.object({
@@ -53,16 +55,14 @@ const buildMoveSchema = z.object({
   type: z.string().trim().nullable(),
   pp: z.number().int().nonnegative().nullable(),
 });
-
 const buildStatSchema = z.object({
   statCode: z.enum(["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"]),
   finalValue: z.number().int().nonnegative().nullable(),
   trainingPoints: z.number().int().nonnegative().nullable(),
   modifier: z.enum(["increased", "decreased", "neutral"]),
 });
-
 const upsertBuildSchema = z.object({
-  ownedPokemonId: z.number().int().positive(),
+  ownedPokemonId: positiveIdSchema,
   name: z.string().trim().min(1),
   format: z.enum(["single", "double", "both"]),
   ability: z.string().trim().nullable().optional(),
@@ -77,7 +77,7 @@ function registerIpc(): void {
   ipcMain.handle("dashboard:get-summary", () => getDashboardSummary());
   ipcMain.handle("pokemon:list", () => listPokemon());
   ipcMain.handle("pokemon:create", (_event, input: unknown) => createPokemon(createPokemonSchema.parse(input)));
-  ipcMain.handle("pokemon:remove", (_event, id: unknown) => removePokemon(z.number().int().positive().parse(id)));
+  ipcMain.handle("pokemon:remove", (_event, id: unknown) => removePokemon(positiveIdSchema.parse(id)));
 
   ipcMain.handle("pokedex:list", () => listPokedex());
   ipcMain.handle("pokedex:status", () => getCatalogStatus());
@@ -88,23 +88,21 @@ function registerIpc(): void {
   ipcMain.handle("abilities:synchronize", () => synchronizeAbilities());
   ipcMain.handle("items:list", () => listItems());
   ipcMain.handle("items:synchronize", () => synchronizeItems());
+  ipcMain.handle("compatibility:get", (_event, id: unknown) => getPokemonCompatibility(positiveIdSchema.parse(id)));
+  ipcMain.handle("compatibility:synchronize", (_event, id: unknown) => synchronizePokemonCompatibility(positiveIdSchema.parse(id)));
 
   ipcMain.handle("builds:list", () => listBuilds());
-  ipcMain.handle("builds:get", (_event, id: unknown) => getBuild(z.number().int().positive().parse(id)));
+  ipcMain.handle("builds:get", (_event, id: unknown) => getBuild(positiveIdSchema.parse(id)));
   ipcMain.handle("builds:create", (_event, input: unknown) => createBuild(upsertBuildSchema.parse(input)));
-  ipcMain.handle("builds:update", (_event, id: unknown, input: unknown) =>
-    updateBuild(z.number().int().positive().parse(id), upsertBuildSchema.parse(input)),
-  );
-  ipcMain.handle("builds:remove", (_event, id: unknown) => removeBuild(z.number().int().positive().parse(id)));
-  ipcMain.handle("builds:duplicate", (_event, id: unknown) => duplicateBuild(z.number().int().positive().parse(id)));
+  ipcMain.handle("builds:update", (_event, id: unknown, input: unknown) => updateBuild(positiveIdSchema.parse(id), upsertBuildSchema.parse(input)));
+  ipcMain.handle("builds:remove", (_event, id: unknown) => removeBuild(positiveIdSchema.parse(id)));
+  ipcMain.handle("builds:duplicate", (_event, id: unknown) => duplicateBuild(positiveIdSchema.parse(id)));
 
   ipcMain.handle("teams:list", () => listTeams());
-  ipcMain.handle("teams:get", (_event, id: unknown) => getTeam(z.number().int().positive().parse(id)));
+  ipcMain.handle("teams:get", (_event, id: unknown) => getTeam(positiveIdSchema.parse(id)));
   ipcMain.handle("teams:create", (_event, input: unknown) => createTeam(upsertTeamSchema.parse(input)));
-  ipcMain.handle("teams:update", (_event, id: unknown, input: unknown) =>
-    updateTeam(z.number().int().positive().parse(id), upsertTeamSchema.parse(input)),
-  );
-  ipcMain.handle("teams:remove", (_event, id: unknown) => removeTeam(z.number().int().positive().parse(id)));
+  ipcMain.handle("teams:update", (_event, id: unknown, input: unknown) => updateTeam(positiveIdSchema.parse(id), upsertTeamSchema.parse(input)));
+  ipcMain.handle("teams:remove", (_event, id: unknown) => removeTeam(positiveIdSchema.parse(id)));
 
   ipcMain.handle("imports:validate", (_event, jsonText: unknown) => validateImport(z.string().max(10_000_000).parse(jsonText)));
   ipcMain.handle("imports:execute", (_event, jsonText: unknown) => executeImport(z.string().max(10_000_000).parse(jsonText)));
@@ -127,7 +125,6 @@ function createWindow(): void {
       sandbox: true,
     },
   });
-
   window.once("ready-to-show", () => window.show());
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://")) void shell.openExternal(url);
@@ -136,7 +133,6 @@ function createWindow(): void {
   window.webContents.on("will-navigate", (event, url) => {
     if (!url.startsWith("file://") && !url.startsWith(process.env.ELECTRON_RENDERER_URL ?? "file://")) event.preventDefault();
   });
-
   if (process.env.ELECTRON_RENDERER_URL) void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void window.loadFile(join(__dirname, "../renderer/index.html"));
 }
@@ -148,13 +144,11 @@ app.commandLine.appendSwitch("disable-gpu-compositing");
 app.whenReady().then(async () => {
   getDatabase();
   registerIpc();
-
   const catalog = getCatalogStatus();
   if (!catalog.synchronizedAt) {
     try { await synchronizePokedex(); }
     catch (error) { console.error("Não foi possível sincronizar a Pokédex completa no primeiro início.", error); }
   }
-
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
