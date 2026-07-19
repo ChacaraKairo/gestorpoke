@@ -15,7 +15,7 @@ import {
 
 let database: Database.Database | null = null;
 
-function getDatabasePath(): string {
+export function getDatabaseFilePath(): string {
   const dataDirectory = join(app.getPath("userData"), "data");
   mkdirSync(dataDirectory, { recursive: true });
   return join(dataDirectory, "gestorpoke.sqlite");
@@ -24,7 +24,7 @@ function getDatabasePath(): string {
 export function getDatabase(): Database.Database {
   if (database) return database;
 
-  database = new Database(getDatabasePath());
+  database = new Database(getDatabaseFilePath());
   database.pragma("foreign_keys = ON");
   database.pragma("journal_mode = WAL");
   migrate(database);
@@ -36,93 +36,134 @@ function hasColumn(db: Database.Database, table: string, column: string): boolea
   return columns.some((item) => item.name === column);
 }
 
-function migrate(db: Database.Database): void {
+type Migration = {
+  version: number;
+  name: string;
+  run(db: Database.Database): void;
+};
+
+const migrations: Migration[] = [
+  {
+    version: 1,
+    name: "initial-schema",
+    run(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS species (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          national_dex_number INTEGER,
+          name TEXT NOT NULL COLLATE NOCASE,
+          form_name TEXT NOT NULL DEFAULT 'default',
+          types_json TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(name, form_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS owned_pokemon (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          species_id INTEGER NOT NULL,
+          nickname TEXT,
+          gender TEXT NOT NULL DEFAULT 'unknown',
+          ownership_status TEXT NOT NULL CHECK (ownership_status IN ('permanent', 'trial', 'visitor')),
+          acquisition_source TEXT NOT NULL CHECK (acquisition_source IN ('champions', 'pokemon_home', 'other')),
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (species_id) REFERENCES species(id) ON DELETE RESTRICT
+        );
+
+        CREATE TABLE IF NOT EXISTS builds (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          owned_pokemon_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          battle_format TEXT NOT NULL DEFAULT 'both' CHECK (battle_format IN ('single', 'double', 'both')),
+          ability TEXT,
+          stat_alignment TEXT,
+          held_item TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (owned_pokemon_id) REFERENCES owned_pokemon(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS build_moves (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          build_id INTEGER NOT NULL,
+          slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 4),
+          name TEXT NOT NULL,
+          type TEXT,
+          pp INTEGER,
+          FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE CASCADE,
+          UNIQUE(build_id, slot)
+        );
+
+        CREATE TABLE IF NOT EXISTS build_stats (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          build_id INTEGER NOT NULL,
+          stat_code TEXT NOT NULL,
+          final_value INTEGER,
+          training_points INTEGER,
+          modifier TEXT NOT NULL DEFAULT 'neutral' CHECK (modifier IN ('increased', 'decreased', 'neutral')),
+          FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE CASCADE,
+          UNIQUE(build_id, stat_code)
+        );
+
+        CREATE TABLE IF NOT EXISTS teams (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          battle_format TEXT NOT NULL CHECK (battle_format IN ('single', 'double')),
+          description TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS team_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          team_id INTEGER NOT NULL,
+          build_id INTEGER NOT NULL,
+          position INTEGER NOT NULL CHECK (position BETWEEN 1 AND 6),
+          FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+          FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE RESTRICT,
+          UNIQUE(team_id, position)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_owned_pokemon_species ON owned_pokemon(species_id);
+        CREATE INDEX IF NOT EXISTS idx_builds_owned_pokemon ON builds(owned_pokemon_id);
+        CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
+      `);
+    },
+  },
+  {
+    version: 2,
+    name: "add-held-item-to-builds",
+    run(db) {
+      if (!hasColumn(db, "builds", "held_item")) {
+        db.exec("ALTER TABLE builds ADD COLUMN held_item TEXT");
+      }
+    },
+  },
+];
+
+export function migrate(db: Database.Database): void {
   db.exec(`
-    CREATE TABLE IF NOT EXISTS species (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      national_dex_number INTEGER,
-      name TEXT NOT NULL COLLATE NOCASE,
-      form_name TEXT NOT NULL DEFAULT 'default',
-      types_json TEXT NOT NULL DEFAULT '[]',
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(name, form_name)
-    );
-
-    CREATE TABLE IF NOT EXISTS owned_pokemon (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      species_id INTEGER NOT NULL,
-      nickname TEXT,
-      gender TEXT NOT NULL DEFAULT 'unknown',
-      ownership_status TEXT NOT NULL CHECK (ownership_status IN ('permanent', 'trial', 'visitor')),
-      acquisition_source TEXT NOT NULL CHECK (acquisition_source IN ('champions', 'pokemon_home', 'other')),
-      notes TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (species_id) REFERENCES species(id) ON DELETE RESTRICT
-    );
-
-    CREATE TABLE IF NOT EXISTS builds (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      owned_pokemon_id INTEGER NOT NULL,
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
-      battle_format TEXT NOT NULL DEFAULT 'both' CHECK (battle_format IN ('single', 'double', 'both')),
-      ability TEXT,
-      stat_alignment TEXT,
-      held_item TEXT,
-      notes TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (owned_pokemon_id) REFERENCES owned_pokemon(id) ON DELETE CASCADE
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-
-    CREATE TABLE IF NOT EXISTS build_moves (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      build_id INTEGER NOT NULL,
-      slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 4),
-      name TEXT NOT NULL,
-      type TEXT,
-      pp INTEGER,
-      FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE CASCADE,
-      UNIQUE(build_id, slot)
-    );
-
-    CREATE TABLE IF NOT EXISTS build_stats (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      build_id INTEGER NOT NULL,
-      stat_code TEXT NOT NULL,
-      final_value INTEGER,
-      training_points INTEGER,
-      modifier TEXT NOT NULL DEFAULT 'neutral' CHECK (modifier IN ('increased', 'decreased', 'neutral')),
-      FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE CASCADE,
-      UNIQUE(build_id, stat_code)
-    );
-
-    CREATE TABLE IF NOT EXISTS teams (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      battle_format TEXT NOT NULL CHECK (battle_format IN ('single', 'double')),
-      description TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS team_members (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      team_id INTEGER NOT NULL,
-      build_id INTEGER NOT NULL,
-      position INTEGER NOT NULL CHECK (position BETWEEN 1 AND 6),
-      FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
-      FOREIGN KEY (build_id) REFERENCES builds(id) ON DELETE RESTRICT,
-      UNIQUE(team_id, position)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_owned_pokemon_species ON owned_pokemon(species_id);
-    CREATE INDEX IF NOT EXISTS idx_builds_owned_pokemon ON builds(owned_pokemon_id);
-    CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
   `);
 
-  if (!hasColumn(db, "builds", "held_item")) {
-    db.exec("ALTER TABLE builds ADD COLUMN held_item TEXT");
+  const appliedRows = db.prepare("SELECT version FROM schema_migrations").all() as Array<{ version: number }>;
+  const applied = new Set(appliedRows.map((row) => Number(row.version)));
+  const insertMigration = db.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, ?)");
+
+  for (const migration of migrations) {
+    if (applied.has(migration.version)) continue;
+
+    const transaction = db.transaction(() => {
+      migration.run(db);
+      insertMigration.run(migration.version, migration.name);
+    });
+    transaction();
   }
 }
 
