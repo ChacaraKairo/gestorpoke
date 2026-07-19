@@ -161,7 +161,7 @@ export type AppApi = {
     create(input: CreatePokemonInput): Promise<PokemonSummary>;
     remove(id: number): Promise<void>;
   };
-  pokedex: {
+  pokedex?: {
     list(): Promise<PokedexEntry[]>;
   };
   builds: {

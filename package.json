@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Assistente desktop para organizar Pokémon, builds, equipes e estratégias.",
+  "desktopName": "GestorPoke",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -48,13 +49,16 @@
     "directories": {
       "output": "dist"
     },
+    "icon": "build/icon.png",
     "files": [
       "out/**/*",
+      "build/**/*",
       "package.json"
     ],
     "linux": {
       "target": ["AppImage"],
-      "category": "Game"
+      "category": "Game",
+      "syncDesktopName": true
     },
     "win": {
       "target": ["nsis"]

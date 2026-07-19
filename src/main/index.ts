@@ -60,6 +60,7 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 700,
     show: false,
+    icon: join(app.getAppPath(), "build/icon.png"),
     backgroundColor: "#11162a",
     title: "GestorPoke",
     webPreferences: {

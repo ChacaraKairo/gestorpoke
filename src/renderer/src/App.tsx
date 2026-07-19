@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import logoUrl from "./assets/logo.png";
 import type {
   CreatePokemonInput,
   DashboardSummary,
@@ -18,6 +19,39 @@ const emptyDashboard: DashboardSummary = {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
+}
+
+function buildPokedexFromPokemon(pokemon: PokemonSummary[]): PokedexEntry[] {
+  const entries = new Map<string, PokedexEntry>();
+
+  pokemon.forEach((item) => {
+    const key = `${item.speciesName.toLocaleLowerCase("pt-BR")}::${item.formName.toLocaleLowerCase("pt-BR")}`;
+    const existing = entries.get(key);
+
+    if (existing) {
+      existing.ownedCount += 1;
+      existing.buildCount += item.buildCount;
+      return;
+    }
+
+    entries.set(key, {
+      id: item.id,
+      speciesName: item.speciesName,
+      nationalDexNumber: item.nationalDexNumber,
+      formName: item.formName,
+      types: item.types,
+      ownedCount: 1,
+      buildCount: item.buildCount,
+      firstSeenAt: item.createdAt,
+    });
+  });
+
+  return Array.from(entries.values()).sort((first, second) => {
+    if (first.nationalDexNumber && second.nationalDexNumber) return first.nationalDexNumber - second.nationalDexNumber;
+    if (first.nationalDexNumber) return -1;
+    if (second.nationalDexNumber) return 1;
+    return first.speciesName.localeCompare(second.speciesName, "pt-BR");
+  });
 }
 
 function PokemonCard({ pokemon, onRemove }: { pokemon: PokemonSummary; onRemove?: (id: number) => void }) {
@@ -377,12 +411,12 @@ export function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [dashboardData, pokedexData, pokemonData, teamData] = await Promise.all([
+      const [dashboardData, pokemonData, teamData] = await Promise.all([
         window.gestorPoke.dashboard.getSummary(),
-        window.gestorPoke.pokedex.list(),
         window.gestorPoke.pokemon.list(),
         window.gestorPoke.teams.list(),
       ]);
+      const pokedexData = window.gestorPoke.pokedex ? await window.gestorPoke.pokedex.list() : buildPokedexFromPokemon(pokemonData);
       setSummary(dashboardData);
       setPokedex(pokedexData);
       setPokemon(pokemonData);
@@ -407,7 +441,7 @@ export function App() {
   return (
     <div className="app-shell">
       <aside className="side-menu">
-        <div className="brand"><span className="brand-mark">GP</span><div><strong>GestorPoke</strong><small>Battle assistant</small></div></div>
+        <div className="brand"><img className="brand-logo" src={logoUrl} alt="GestorPoke" /><div><strong>GestorPoke</strong><small>Battle assistant</small></div></div>
         <nav>{navigation.map((item) => <button className={page === item.id ? "active" : ""} key={item.id} type="button" onClick={() => setPage(item.id)}><span>{item.icon}</span>{item.label}</button>)}</nav>
         <div className="side-note"><span>Modo local</span><strong>Pokémon Champions</strong></div>
       </aside>
