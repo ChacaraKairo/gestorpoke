@@ -1,7 +1,14 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 import { z } from "zod";
-import { listBuilds } from "./builds";
+import {
+  createBuild,
+  duplicateBuild,
+  getBuild,
+  listBuilds,
+  removeBuild,
+  updateBuild,
+} from "./builds";
 import {
   closeDatabase,
   createPokemon,
@@ -37,16 +44,48 @@ const createTeamSchema = z.object({
   buildIds: z.array(z.number().int().positive()).max(6),
 });
 
+const buildMoveSchema = z.object({
+  slot: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  name: z.string().trim().min(1),
+  type: z.string().trim().nullable(),
+  pp: z.number().int().nonnegative().nullable(),
+});
+
+const buildStatSchema = z.object({
+  statCode: z.enum(["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"]),
+  finalValue: z.number().int().nonnegative().nullable(),
+  trainingPoints: z.number().int().nonnegative().nullable(),
+  modifier: z.enum(["increased", "decreased", "neutral"]),
+});
+
+const upsertBuildSchema = z.object({
+  ownedPokemonId: z.number().int().positive(),
+  name: z.string().trim().min(1),
+  format: z.enum(["single", "double", "both"]),
+  ability: z.string().trim().nullable().optional(),
+  statAlignment: z.string().trim().nullable().optional(),
+  heldItem: z.string().trim().nullable().optional(),
+  notes: z.string().trim().nullable().optional(),
+  moves: z.array(buildMoveSchema).max(4),
+  stats: z.array(buildStatSchema).max(6),
+});
+
 function registerIpc(): void {
   ipcMain.handle("dashboard:get-summary", () => getDashboardSummary());
   ipcMain.handle("pokemon:list", () => listPokemon());
   ipcMain.handle("pokemon:create", (_event, input: unknown) => createPokemon(createPokemonSchema.parse(input)));
-  ipcMain.handle("pokemon:remove", (_event, id: unknown) => {
-    const parsedId = z.number().int().positive().parse(id);
-    removePokemon(parsedId);
-  });
+  ipcMain.handle("pokemon:remove", (_event, id: unknown) => removePokemon(z.number().int().positive().parse(id)));
   ipcMain.handle("pokedex:list", () => listPokedex());
+
   ipcMain.handle("builds:list", () => listBuilds());
+  ipcMain.handle("builds:get", (_event, id: unknown) => getBuild(z.number().int().positive().parse(id)));
+  ipcMain.handle("builds:create", (_event, input: unknown) => createBuild(upsertBuildSchema.parse(input)));
+  ipcMain.handle("builds:update", (_event, id: unknown, input: unknown) =>
+    updateBuild(z.number().int().positive().parse(id), upsertBuildSchema.parse(input)),
+  );
+  ipcMain.handle("builds:remove", (_event, id: unknown) => removeBuild(z.number().int().positive().parse(id)));
+  ipcMain.handle("builds:duplicate", (_event, id: unknown) => duplicateBuild(z.number().int().positive().parse(id)));
+
   ipcMain.handle("teams:list", () => listTeams());
   ipcMain.handle("teams:create", (_event, input: unknown) => createTeam(createTeamSchema.parse(input)));
   ipcMain.handle("imports:validate", (_event, jsonText: unknown) => validateImport(z.string().parse(jsonText)));
@@ -77,11 +116,8 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  if (process.env.ELECTRON_RENDERER_URL) {
-    void window.loadURL(process.env.ELECTRON_RENDERER_URL);
-  } else {
-    void window.loadFile(join(__dirname, "../renderer/index.html"));
-  }
+  if (process.env.ELECTRON_RENDERER_URL) void window.loadURL(process.env.ELECTRON_RENDERER_URL);
+  else void window.loadFile(join(__dirname, "../renderer/index.html"));
 }
 
 app.disableHardwareAcceleration();
@@ -92,7 +128,6 @@ app.whenReady().then(() => {
   getDatabase();
   registerIpc();
   createWindow();
-
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
