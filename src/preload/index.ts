@@ -1,9 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AppApi, CreatePokemonInput, UpsertBuildInput, UpsertTeamInput } from "../shared/contracts";
+import type { AppApi, CreatePokemonInput, UpdatePokemonInput, UpsertBuildInput, UpsertTeamInput } from "../shared/contracts";
 
 const api: AppApi = {
   dashboard:{ getSummary:()=>ipcRenderer.invoke("dashboard:get-summary") },
-  pokemon:{ list:()=>ipcRenderer.invoke("pokemon:list"), create:(input:CreatePokemonInput)=>ipcRenderer.invoke("pokemon:create",input), remove:(id:number)=>ipcRenderer.invoke("pokemon:remove",id) },
+  pokemon:{ list:()=>ipcRenderer.invoke("pokemon:list"), get:(id:number)=>ipcRenderer.invoke("pokemon:get",id), create:(input:CreatePokemonInput)=>ipcRenderer.invoke("pokemon:create",input), update:(id:number,input:UpdatePokemonInput)=>ipcRenderer.invoke("pokemon:update",id,input), remove:(id:number)=>ipcRenderer.invoke("pokemon:remove",id) },
   pokedex:{ list:()=>ipcRenderer.invoke("pokedex:list"), status:()=>ipcRenderer.invoke("pokedex:status"), synchronize:()=>ipcRenderer.invoke("pokedex:synchronize") },
   moves:{ list:()=>ipcRenderer.invoke("moves:list"), synchronize:()=>ipcRenderer.invoke("moves:synchronize") },
   abilities:{ list:()=>ipcRenderer.invoke("abilities:list"), synchronize:()=>ipcRenderer.invoke("abilities:synchronize") },
