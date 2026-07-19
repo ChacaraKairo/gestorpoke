@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import type { PokemonSummary, TeamDetail, TeamSummary } from "../../shared/contracts";
 import {
   getCombinedEffectiveness,
@@ -7,7 +8,6 @@ import {
   pokemonTypes,
   typeColors,
   typeLabels,
-  type PokemonType,
   type TypeMultiplier,
 } from "../../shared/type-system";
 import "./type-analysis.css";
@@ -17,6 +17,10 @@ function effectivenessClass(value: TypeMultiplier): string {
   if (value <= 0.5) return "resisted";
   if (value >= 2) return "effective";
   return "neutral";
+}
+
+function typeStyle(color: string): CSSProperties {
+  return { "--type-color": color } as CSSProperties;
 }
 
 export function TypeAnalysisOverlay() {
@@ -89,9 +93,9 @@ export function TypeAnalysisOverlay() {
 function GeneralTypeChart() {
   return <div className="type-chart-scroll">
     <table className="type-chart-table">
-      <thead><tr><th className="corner-cell">Ataque ↓<br />Defesa →</th>{pokemonTypes.map((type) => <th key={type} style={{ "--type-color": typeColors[type] } as React.CSSProperties}>{typeLabels[type]}</th>)}</tr></thead>
+      <thead><tr><th className="corner-cell">Ataque ↓<br />Defesa →</th>{pokemonTypes.map((type) => <th key={type} style={typeStyle(typeColors[type])}>{typeLabels[type]}</th>)}</tr></thead>
       <tbody>{pokemonTypes.map((attacking) => <tr key={attacking}>
-        <th style={{ "--type-color": typeColors[attacking] } as React.CSSProperties}>{typeLabels[attacking]}</th>
+        <th style={typeStyle(typeColors[attacking])}>{typeLabels[attacking]}</th>
         {pokemonTypes.map((defending) => { const value = getTypeEffectiveness(attacking, defending); return <td key={defending} className={effectivenessClass(value)} title={`${typeLabels[attacking]} contra ${typeLabels[defending]}: ${getMultiplierLabel(value)}`}>{value === 1 ? "" : getMultiplierLabel(value)}</td>; })}
       </tr>)}</tbody>
     </table>
@@ -115,7 +119,7 @@ function TeamTypeComparison({ members }: { members: Array<{ pokemon: PokemonSumm
     <table className="team-type-table">
       <thead><tr><th>Tipo atacante</th>{members.map((member, index) => <th key={`${member.pokemonName}-${index}`}>{member.pokemonName}</th>)}<th>Fracos</th><th>Resistem</th><th>Imunes</th></tr></thead>
       <tbody>{summaries.map((row) => <tr key={row.attacking}>
-        <th style={{ "--type-color": typeColors[row.attacking] } as React.CSSProperties}>{typeLabels[row.attacking]}</th>
+        <th style={typeStyle(typeColors[row.attacking])}>{typeLabels[row.attacking]}</th>
         {row.values.map((value, index) => <td key={index} className={effectivenessClass(value)}>{getMultiplierLabel(value)}</td>)}
         <td className={row.weak >= 3 ? "risk-high" : ""}>{row.weak}</td><td>{row.resist}</td><td>{row.immune}</td>
       </tr>)}</tbody>
