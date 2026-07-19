@@ -1,17 +1,10 @@
 import { z } from "zod";
 
-export const statCodes = [
-  "hp",
-  "attack",
-  "defense",
-  "specialAttack",
-  "specialDefense",
-  "speed",
-] as const;
-
+export const statCodes = ["hp", "attack", "defense", "specialAttack", "specialDefense", "speed"] as const;
 export type StatCode = (typeof statCodes)[number];
 export type BattleFormat = "single" | "double" | "both";
 export type StatModifier = "increased" | "decreased" | "neutral";
+export type AvailabilityStatus = "confirmed" | "unavailable" | "unknown";
 
 export const moveImportSchema = z.object({
   slot: z.number().int().min(1).max(4),
@@ -33,14 +26,12 @@ export const pokemonImportRecordSchema = z.object({
     form: z.string().trim().default("default"),
     types: z.array(z.string().trim().min(1)).max(2).optional(),
   }),
-  ownedPokemon: z
-    .object({
-      nickname: z.string().trim().nullable().optional(),
-      gender: z.enum(["male", "female", "genderless", "unknown"]).optional(),
-      ownershipStatus: z.enum(["permanent", "trial", "visitor"]).default("permanent"),
-      acquisitionSource: z.enum(["champions", "pokemon_home", "other"]).default("champions"),
-    })
-    .default({ ownershipStatus: "permanent", acquisitionSource: "champions" }),
+  ownedPokemon: z.object({
+    nickname: z.string().trim().nullable().optional(),
+    gender: z.enum(["male", "female", "genderless", "unknown"]).optional(),
+    ownershipStatus: z.enum(["permanent", "trial", "visitor"]).default("permanent"),
+    acquisitionSource: z.enum(["champions", "pokemon_home", "other"]).default("champions"),
+  }).default({ ownershipStatus: "permanent", acquisitionSource: "champions" }),
   build: z.object({
     name: z.string().trim().min(1).default("Build principal"),
     format: z.enum(["single", "double", "both"]).default("both"),
@@ -48,16 +39,14 @@ export const pokemonImportRecordSchema = z.object({
     ability: z.string().trim().nullable().optional(),
     heldItem: z.string().trim().nullable().optional(),
     moves: z.array(moveImportSchema).max(4).default([]),
-    stats: z
-      .object({
-        hp: statValueSchema.optional(),
-        attack: statValueSchema.optional(),
-        defense: statValueSchema.optional(),
-        specialAttack: statValueSchema.optional(),
-        specialDefense: statValueSchema.optional(),
-        speed: statValueSchema.optional(),
-      })
-      .optional(),
+    stats: z.object({
+      hp: statValueSchema.optional(),
+      attack: statValueSchema.optional(),
+      defense: statValueSchema.optional(),
+      specialAttack: statValueSchema.optional(),
+      specialDefense: statValueSchema.optional(),
+      speed: statValueSchema.optional(),
+    }).optional(),
     notes: z.string().trim().nullable().optional(),
   }),
 });
@@ -86,6 +75,7 @@ export type PokemonSummary = {
   nickname: string | null;
   formName: string;
   types: string[];
+  imageUrl: string | null;
   ability: string | null;
   statAlignment: string | null;
   heldItem: string | null;
@@ -109,6 +99,7 @@ export type PokedexEntry = {
 
 export type CatalogStatus = {
   speciesCount: number;
+  moveCount: number;
   synchronizedAt: string | null;
   source: string;
 };
@@ -116,6 +107,20 @@ export type CatalogStatus = {
 export type CatalogSyncResult = CatalogStatus & {
   imported: number;
   updated: number;
+};
+
+export type MoveCatalogEntry = {
+  id: number;
+  name: string;
+  type: string | null;
+  category: "physical" | "special" | "status" | null;
+  power: number | null;
+  accuracy: number | null;
+  pp: number | null;
+  priority: number;
+  target: string | null;
+  description: string | null;
+  availability: AvailabilityStatus;
 };
 
 export type BuildMove = {
@@ -137,6 +142,7 @@ export type BuildSummary = {
   ownedPokemonId: number;
   speciesName: string;
   pokemonName: string;
+  imageUrl: string | null;
   buildName: string;
   format: BattleFormat;
   ability: string | null;
@@ -162,6 +168,8 @@ export type UpsertBuildInput = {
   stats: BuildStat[];
 };
 
+export type TeamMember = BuildSummary & { position: number };
+
 export type TeamSummary = {
   id: number;
   name: string;
@@ -169,6 +177,15 @@ export type TeamSummary = {
   description: string | null;
   memberCount: number;
   createdAt: string;
+};
+
+export type TeamDetail = TeamSummary & { members: TeamMember[] };
+
+export type UpsertTeamInput = {
+  name: string;
+  format: "single" | "double";
+  description?: string | null;
+  buildIds: number[];
 };
 
 export type CreatePokemonInput = {
@@ -185,13 +202,6 @@ export type CreatePokemonInput = {
   heldItem?: string | null;
 };
 
-export type CreateTeamInput = {
-  name: string;
-  format: "single" | "double";
-  description?: string | null;
-  buildIds: number[];
-};
-
 export type ImportResult = {
   importedPokemon: number;
   importedBuilds: number;
@@ -199,9 +209,7 @@ export type ImportResult = {
 };
 
 export type AppApi = {
-  dashboard: {
-    getSummary(): Promise<DashboardSummary>;
-  };
+  dashboard: { getSummary(): Promise<DashboardSummary> };
   pokemon: {
     list(): Promise<PokemonSummary[]>;
     create(input: CreatePokemonInput): Promise<PokemonSummary>;
@@ -210,6 +218,10 @@ export type AppApi = {
   pokedex: {
     list(): Promise<PokedexEntry[]>;
     status(): Promise<CatalogStatus>;
+    synchronize(): Promise<CatalogSyncResult>;
+  };
+  moves: {
+    list(): Promise<MoveCatalogEntry[]>;
     synchronize(): Promise<CatalogSyncResult>;
   };
   builds: {
@@ -222,7 +234,10 @@ export type AppApi = {
   };
   teams: {
     list(): Promise<TeamSummary[]>;
-    create(input: CreateTeamInput): Promise<TeamSummary>;
+    get(id: number): Promise<TeamDetail>;
+    create(input: UpsertTeamInput): Promise<TeamDetail>;
+    update(id: number, input: UpsertTeamInput): Promise<TeamDetail>;
+    remove(id: number): Promise<void>;
   };
   imports: {
     validate(jsonText: string): Promise<{ valid: boolean; errors: string[]; count: number }>;
