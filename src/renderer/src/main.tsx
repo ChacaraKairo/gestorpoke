@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { AppV2 } from "./AppV2";
+import { CompatibilityOverlay } from "./CompatibilityOverlay";
 import { TeamRegulationOverlay } from "./TeamRegulationOverlay";
 import { TypeAnalysisOverlay } from "./TypeAnalysisOverlay";
 import { VisualEnhancer } from "./VisualEnhancer";
@@ -13,5 +14,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <VisualEnhancer />
     <TypeAnalysisOverlay />
     <TeamRegulationOverlay />
+    <CompatibilityOverlay />
   </React.StrictMode>,
 );
