@@ -6,6 +6,7 @@ import { BuildsPage, OwnedPokemonPage } from "./app/pages/PokemonPages";
 import { ImportPage, TeamsPage } from "./app/pages/TeamImportPages";
 import { emptyDashboard, errorMessage, type Page } from "./app/ui";
 import "./v2.css";
+import "./app/modular-pages.css";
 
 export function AppV2() {
   const [page, setPage] = useState<Page>("home");
